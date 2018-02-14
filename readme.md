@@ -20,3 +20,5 @@ Collection of notes from various data science tutorials and textbooks. Original 
 * [Web Scrape Basketball-Reference](https://youtu.be/2RW9zSQF1Sk)
 
 * [PostgreSQL](https://www.postgresql.org/docs/9.6/static/index.html)
+
+* [Neural Networks](https://deeplearning4j.org/neuralnet-overview)
