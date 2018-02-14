@@ -15,6 +15,8 @@ Collection of notes from various data science tutorials and textbooks. Original 
 
 * [Python for Data Analysis](https://www.amazon.com/Python-Data-Analysis-Wrangling-IPython/dp/1449319793)
 
+* [Udemy Machine Learning w/ Python and Keras](https://www.udemy.com/machine-learning-fun-and-easy-using-python-and-keras/)
+
 * [Data School Web Scraping w/ Python](https://www.youtube.com/watch?v=r_xb0vF1uMc)
 
 * [Web Scrape Basketball-Reference](https://youtu.be/2RW9zSQF1Sk)
