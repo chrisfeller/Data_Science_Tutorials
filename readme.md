@@ -18,3 +18,5 @@ Collection of notes from various data science tutorials and textbooks. Original 
 * [Data School Web Scraping w/ Python](https://www.youtube.com/watch?v=r_xb0vF1uMc)
 
 * [Web Scrape Basketball-Reference](https://youtu.be/2RW9zSQF1Sk)
+
+* [PostgreSQL](https://www.postgresql.org/docs/9.6/static/index.html)
