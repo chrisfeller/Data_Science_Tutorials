@@ -11,11 +11,13 @@ Collection of notes from various data science tutorials and textbooks. Original 
 
 * [Numpy Tutorial](https://docs.scipy.org/doc/numpy-1.13.0/user/quickstart.html)
 
-* [Data School Scikit-learn Tutorial](https://www.youtube.com/watch?v=elojMnjn4kk&list=PL5-da3qGB5ICeMbQuqbbCOQWcS6OYBr5A&index=1)
-
 * [Python for Data Analysis](https://www.amazon.com/Python-Data-Analysis-Wrangling-IPython/dp/1449319793)
 
+* [Data School Scikit-learn Tutorial](https://www.youtube.com/watch?v=elojMnjn4kk&list=PL5-da3qGB5ICeMbQuqbbCOQWcS6OYBr5A&index=1)
+
 * [Udemy Machine Learning w/ Python and Keras](https://www.udemy.com/machine-learning-fun-and-easy-using-python-and-keras/)
+
+* [Machine Learning In Action](https://www.amazon.com/Machine-Learning-Action-Peter-Harrington/dp/1617290181)
 
 * [Data School Web Scraping w/ Python](https://www.youtube.com/watch?v=r_xb0vF1uMc)
 
