@@ -15,6 +15,8 @@ Collection of notes from various data science tutorials and textbooks. Original 
 
 * [Data School Scikit-learn Tutorial](https://www.youtube.com/watch?v=elojMnjn4kk&list=PL5-da3qGB5ICeMbQuqbbCOQWcS6OYBr5A&index=1)
 
+* [An Introduction to Statistical Learning](https://www.amazon.com/Introduction-Statistical-Learning-Applications-Statistics/dp/1461471370)
+
 * [Udemy Machine Learning w/ Python and Keras](https://www.udemy.com/machine-learning-fun-and-easy-using-python-and-keras/)
 
 * [Machine Learning In Action](https://www.amazon.com/Machine-Learning-Action-Peter-Harrington/dp/1617290181)
