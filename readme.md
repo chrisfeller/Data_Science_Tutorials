@@ -17,9 +17,13 @@ Collection of notes from various data science tutorials and textbooks. Original 
 
 * [An Introduction to Statistical Learning](https://www.amazon.com/Introduction-Statistical-Learning-Applications-Statistics/dp/1461471370)
 
+* [Coursera Machine Learning](https://www.coursera.org/learn/machine-learning)
+
 * [Udemy Machine Learning w/ Python and Keras](https://www.udemy.com/machine-learning-fun-and-easy-using-python-and-keras/)
 
 * [Machine Learning In Action](https://www.amazon.com/Machine-Learning-Action-Peter-Harrington/dp/1617290181)
+
+* [Hands-On Machine Learning with Scikit-Learn and TensorFlow](https://www.amazon.com/Hands-Machine-Learning-Scikit-Learn-TensorFlow/dp/1491962291)
 
 * [Data School Web Scraping w/ Python](https://www.youtube.com/watch?v=r_xb0vF1uMc)
 
