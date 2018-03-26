@@ -295,4 +295,4 @@
 * [Cost Function Reading](https://stats.stackexchange.com/questions/154879/a-list-of-cost-functions-used-in-neural-networks-alongside-applications)
 
 **Backpropagation Algorithm**
-* 
+*
