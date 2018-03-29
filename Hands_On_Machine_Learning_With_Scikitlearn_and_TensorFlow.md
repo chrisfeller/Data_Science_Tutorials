@@ -483,3 +483,329 @@ grid_search.best_estimator_
     * This is best done by a human analyst with contextual knowledge.
 * You should also make sure you evaluate the system's input data quality.
 * Lastly, you should generally train your model on a regular basis using fresh data. You should automate this process as much as possible.
+
+---
+#### Chapter 3 | Classification
+**Data**
+* This chapter will utilize the MNIST handwritten dataset:
+```
+from sklearn.datasets import fetch_mldata
+mnist = fetch_mldata('MNIST original')
+
+# Create feature matrix X and target vector y
+X, y = mnist['data'], mnist['target']
+```
+* Perform a train/test split and then shuffle the training data:
+    * Shuffling the training data guarantees that all cross-validation folds will be randomly similar.
+    * This is important because some learning algorithms are sensitive to the order of the training instances.
+```
+X_train, X_test, y_train, y_test = X[:60000], X[60000:], y[:60000], y[60000:]
+
+# Shuffle training data
+import numpy as np
+shuffle_index = np.random.permutation(60000)
+X_train, y_train = X_train[shuffle_index], y_train[shuffle_index]
+```
+* As a quick example of classification, let's attempt to classify whether an image is a 5 or not using Stochastic Gradient Descent:
+```
+from sklearn.linear_model import SGDClassifier
+
+# Create T/F for whether a label is 5 or not
+y_train_5 = (y_train == 5)
+y_test_5 = (y_test == 5)
+
+# Build model
+sgd_clf = SGDClassifier(random_state=42)
+sgd_clf.fit(X_train, y_train_5)
+
+# Predict on a random observation in test data
+test_digit = X_test[10]
+sgd_clf.predict([test_digit])
+```
+
+**Classification Performance Measures**
+* The best way to measure the performance of a classifier (and really most models) is cross validation:
+```
+from sklearn.model_selection import cross_val_score
+cross_val_score(sgd_clf, X_train, y_train_5, cv=3, scoring='accuracy')
+```
+* However, accuracy is generally not the preferred performance measure for classifiers, especially when you are dealing with imbalanced classes (i.e., skewed datasets in which some classes are much more frequent than others).
+
+**Confusion Matrix**
+* The best way to evaluate a classifier is via a confusion matrix:
+```
+# Make predictions in test data
+y_pred = sgd_clf.predict(X_train)
+
+# Build confusion matrix
+from sklearn.metrics import confusion_matrix
+confusion_matrix(y_train_5, y_pred)
+```
+* Each row in a confusion matrix represents an actual class, while each column represents a predicted class.
+* sklearn's confusion matrix is displayed as followed:
+
+| TN  | FP  |
+|---|---|
+| **FN**  | **TP**  |
+
+* A perfect classifier would have only true positives and true negatives.
+* From the confusion matrix you can calculate many more granular metrics:
+    * Precision
+        * Accuracy of the positive predictions
+        * Equation: TP/(TP + FP)
+        * In sklearn:
+        ```
+        from sklearn.metrics import precision_score
+        precision_score(y_test, y_pred)
+        ```
+    * Recall (AKA: Sensitivity, AKA: True Positive Rate
+        * Ratio of positive instances that are correctly detected by the classifier.
+        * Equation: TP/(TP + FN)
+        * In sklearn:
+        ```
+        from sklearn.metrics import recall_score
+        recall_score(y_test, y_pred)
+        ```
+    * F-Score
+        * Combination of precision and recall
+        * The harmonic mean of precision and recall
+        * Will only be high if both precision and recall are high
+        * Will favor classifiers that have similar precision and recall.
+        * In sklearn:
+        ```
+        from sklearn.metrics import f1_score
+        f1_score(y_test, y_pred)
+        ```
+* Unfortunately, you can't have it both ways: increasing precision reduces recall, and vice versa. This is called the precision/recall tradeoff.
+
+**The ROC Curve**
+* The Receiver Operating Characteristic (ROC) curve is another tool use to evaluate classifiers.
+* Plots the true positive rate (AKA recall) against the false positive rate.
+    * The FPR is the ratio of negative instances that are incorrectly classified as positive.
+    * In other words, the ROC curve plots sensitivity (recall) versus 1 - specificity.
+* To plot the ROC curve:
+```
+from sklearn.metrics import roc_curve
+
+y_proba = sgd_clf.predict_proba([test_digit])
+
+fpr, tpr, thresholds = roc_curve(y_test_5, y_proba[:,1])
+
+def plot_roc_curve(fpr, tpr, label=None):
+    plt.plot(fpr, tpr, linewidth=2, label=label)
+    plt.plot([0,1], [0,1], 'k--')
+    plt.axis([0, 1, 0, 1])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.show()
+
+plot_roc_curve(fpr, tpr, label=None)
+```
+* One way to compare classifiers is to measure the area under the curve (AUC).
+    * A perfect classifier has an AUC equal to one, whereas a purely random classifier will have an AUC equal to 0.5.
+    * In sklearn:
+    ```
+    from sklearn.metrics import roc_auc_score
+    roc_auc_score(y_test_5, y_proba[:,1])
+    ```
+**Multiclass Classification**
+* Multiclass classifiers (also called multinomial classifiers) can distinguish between more than two classes.
+* Some algorithsm (Random Forests, Naive Bayes) are capable of handling multiple classes directly, while others (Support Vector Machines and Logistic Regression) are strictly binary classifiers.
+* However there are strategies to turn binary classifiers into multiclass classifiers:
+    * One-versus-all (aka one versus-the-rest)
+    * One-versus-one
+* sklearn automatically uses one-versus-all for all binary classifiers when you try and predict multi-class problems (except for Support Vector Machines in which case it uses one-versus-one)
+
+---
+#### Chapter 4 | Training Model
+**Linear Regression**
+* There are two very different way to train a linear regression model:
+    1) The Normal Equation
+        * A direct 'closed-form' equation that directly computes the model parameters that best fit the model to the training set.
+            * i.e., the model parameters that minimize the cost function over the training set.
+        * The Normal Equation is a mathematical equation that gives the result directly.
+        * The Normal Equation gets very slow when the number of features grows large (e.g., 100,000)
+    2) Gradient Descent
+        * Iterative optimization approach, that gradually tweaks the model parameters to minimize the cost function over the training set, eventually converging to the same set of parameters as the Normal Equation.
+        * The general idea of Gradient Descent is to tweak parameters iteratively in order to minimize a cost function.
+        * An important hyperparameter in Gradient Descent is the size of the steps, determined by the learning rate hyperparameter.
+        * In most algorithms, Gradient Descent won't always find a global minimum, however Linear Regression is a convex function so there are no local minimum and thus if you let Gradient Descent run long enough it will find the global minimum.
+        * When using Gradient Descent, you should ensure that all features have similar scale (e.g., use sklearn's `StandardScaler()`) to decrease the training time of linear regression models.
+        * Better than the normal equation when there are a large number of features (> 100,000) or too many training instances to fit in memory.
+        * There exists multiple types of Gradient Descent:
+            1) Batch Gradient Descent
+                * At each step, compute the gradients based on the full training set
+            2) Stochastic Gradient Descent
+                * At each step, compute the gradients based on just one instance.
+                * Has a better chance of finding the global minimum because it has the ability to jump out of local minimum.
+            3) Mini-Batch Gradient Descent
+                * At each step, compute the gradients based on a small random set of instances called mini-batches.
+* While the Normal Equation can only perform Linear Regression, Gradient Descent algorithms can be used to train many other models.
+* Linear Regression in sklearn:
+```
+# Imports
+import numpy as np
+from sklearn.linear_model import LinearRegression
+
+# Create fake data
+X = 2 * np.random.rand(100, 1)
+y = 4 + 3*X + np.random.randn(100,1)
+
+# Build Model
+lin_reg = LinearRegression()
+lin_reg.fit(X, y)
+
+# Print intercept and coefficients
+print(lin_reg.intercept_, lin_reg.coef_)
+
+# Make a prediction
+X_new = np.array([[0], [2]])
+lin_reg.predict(X_new)
+```
+
+**Polynomial Regression**
+* You can use linear regression to fit nonlinear data by adding powers of each feature as new features in the model.
+    * This approach is called Polynomial Regression.
+* When there are multiple features, Polynomial Regression is capable of finding relationships between features, which is something a plain linear regression cannot do.
+* To transform our training data by adding the square (2^nd^ degree polynomial) of each feature in the training data:
+```
+from sklearn.preprocessing import PolynomialFeatures
+
+poly_features = PolynomialFeatures(degree=2, include_bias=False)
+X_poly = poly_features.fit_transform(X)
+```
+
+**Under/Overfitting Models**
+* If your model is underfitting the training data, adding more training examples will not help.You need to use a more complex model or come up with better features.
+* If your model is overfitting the training data you could either decrease the complexity of your model or provide it with more training data.
+
+**The Bias/Variance Tradeoff**
+* A model's error can be expressed as the sum of three very different errors:
+    1) Bias: This part of the error is due to wrong assumptions, such as assuming that the data is linear when it's actually quadratic.
+        * A high bias model is likely to underfit the training data.
+    2) Variance: This part of the error is due to the model's excessive sensitivity to small variations in the training data.
+        * A model with many degrees of freedom (such as a high-degree polynomial model) is likely to have high variance, and thus overfit the training data.
+    3) Irreducible Error: This part of the error is due to the noise of the data itself.
+        * The only way to reduce irreducible error is to clean up the data( fix the data sources, or detect and remove outliers).
+* Increasing a model's complexity will typically increase its variance and reduce its bias. Conversely, reducing a model's complexity increases its bias and reduces its variance.
+
+**Regularized Linear Models**
+* A good way to reduce overfitting is to regularize the model (i.e., to constrain it).
+* For linear models, regularization is typically achieved by constraining the weights of the model.
+* The three ways to do this are:
+    1) Ridge Regression
+    2) Lasso Regression
+    3) Elastic Net
+
+**Ridge Regression**
+* Ridge regression is a regularized version of linear regression, in which a regularization term is added to the cost function.
+* The regularization term forces the learning algorithm to not only fit the data but also to keep the model weights as small as possible.
+* The hyperparameter \$alpha$ controls how much you want to regularize.
+    * \$alpha$ = 0 is equivalent to linear regression.
+    * IF \$alpha$ is large then all coefficients end up close to zero.
+* It is important to scale your data before performing ridge regression as it is sensitive to the scale of the features.
+* Uses L2 norm.
+
+**Lasso Regression**
+* Least Absolute Shrinkage and Selection Operator Regression (Lasso Regression) is another regularized version of linear regression.
+* An important characteristic of Lasso Regression is that it tends to completely eliminate the weights of the least important features (i.e., sets them to zero).
+    * In other words, Lasso automatically performs feature selection and outputs a sparse model.
+* Unlike Ridge Regression, Lasso uses the L1 norm.
+
+**Elastic Net**
+* Elastic net is the middle ground between Ridge Regression and Lasso Regression.
+* The regularization term is a simple mix of both Ridge and Lasso's regularization terms, and you can control the mix ratio `r`.
+    * When `r`=0, Elastic Net is equivalent to Ridge Regression, and when `r`=1, it is equivalent to Lasso Regression.
+
+**Logistic Regression**
+* Logistic regression (also called logit regression) is commonly used to estimate the probability that an instance belongs to a particular class.
+* The estimates are calculated via a sigmoid function and are bounded between 0 and 1.
+* There is no Normal Equation to solve the cost function of logistic regression so we instead use gradient descent.
+
+**Softmax Regression**
+* The logistic regression model can be generalized to support multiple classes directly, without having to train and combine multiple binary classifiers.
+    * This is called the softmax regression or multinomial logistic regression.
+* Just like logistic regression, the softmax regression classifier predicts the class with the highest estimated probability.
+
+---
+#### Chapter 5 | Support Vector Machines
+**Introduction**
+* SVM's are particularly well suited for classification of complex but small- or medium-sized datasets.
+
+**Linear SVM Classification**
+* You can think of SVM classifier as fitting the widest possible street between two classes.
+    * This street is called large margin classification.
+    * The decision boundary, or 'street', is fully determined (or 'supported') by the instances located on the edge of the street.
+        * These instances are called the support vectors.
+* Unlike Logistic Regression, SVM does not output probabilities for each class.
+
+**Soft Margin Classification**
+* If we strictly impose that all instances be off the street and on the right side, this is called hard margin classification.
+* There are two main issues with hard margin classification:
+    1) It only works if the data is linearly separable
+    2) It's quite sensitive to outliers.
+* As a solution, we use soft margin classification where we allow for a few instances to be misclassified.
+    * In sklearn you can control this budget via the hyperparameter `C`.
+        * A smaller `C` value leads to a wider street but more margin violations.
+
+**Nonlinear SVM Classification**
+* When a linear boundary isn't present in the data, you can still use SVM's thanks to the kernel trick.
+* The kernel trick serves a similar purpose as adding many polynomial features without having to actually add them.
+* Example of kernel trick using 3 degrees:
+```
+from sklearn.svm import SVC
+poly_kernel_svm_clf = Pipeline([
+    ('scaler', StandardScaler()),
+    ('svm_clf', SVC(kernel='poly', degree=3, coef0=1, C=5))
+    ])
+poly_kernel_svm_clf.fit(X, y)
+```
+* As a rule of thumb, you should always try the linear kernel first (because it's fastest). Next, try the Gaussian RBF kernel.
+
+---
+#### Chapter 6 | Decision Trees
+**Introduction**
+* Decision Trees are versatile machine learning algorithms that can perform both classification and regression tasks, even with multioutput tasks.
+* They are also the foundation of some of the most powerful algorithms such as Random Forests and Gradient Boosting.
+* sklearn uses the CART algorithm, which produces only binary trees.
+* sklearn defaults to using Gini impurity over entropy and others.
+    * Gini impurity is slightly faster to compute but gives similar answers to entropy.
+    * Gini impurity tends to isolate the most frequent class in its own branch of the tree, while entropy tends to produce slightly more balanced trees.
+
+**Parametric vs. Non-Parametric Models**
+* Decision trees are a form of non-parametric models, not because they don't have any parameters (they often have lots), but because the number of parameters is not determined prior to training, so the model structure is free to stick closely to the data.
+* Parametric models, in contrast, such as linear models have a predetermined number of parameters, so its degrees of freedom is limited thus reducing the risk of overfitting (but increasing the risk of underfitting).
+
+**Decision Tree in sklearn**
+```
+from sklearn.datasets import load_iris
+from sklearn.tree import DecisionTreeClassifier
+
+iris = load_iris()
+X = iris.data[:,2:] # petal length and width
+y = iris.target
+
+tree_clf = DecisionTreeClassifier(max_depth=2)
+tree_clf.fit(X, y)
+```
+
+**Visualizing Decision Trees**
+```
+from sklearn.tree import export_graphviz
+
+export_graphviz(
+    tree_clf,
+    out_file = 'iris_tree.dot',
+    feature_names = iris.feature_names[2:],
+    class_names = iris.target_names,
+    rounded=True,
+    filled=True
+    )
+```
+* Then from the command line:
+```
+$ dot -Tpng iris_tree.dot > iris_tree.png
+```
+
+---
+#### Chapter 7 | Decision Trees

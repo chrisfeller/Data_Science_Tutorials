@@ -295,4 +295,4 @@
 * [Cost Function Reading](https://stats.stackexchange.com/questions/154879/a-list-of-cost-functions-used-in-neural-networks-alongside-applications)
 
 **Backpropagation Algorithm**
-*
+* Backpropagation is neural-network terminology for minimizing our cost function, just like what we were doing with gradient descent in logistic and linear regression.
