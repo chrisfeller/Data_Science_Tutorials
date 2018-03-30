@@ -808,4 +808,158 @@ $ dot -Tpng iris_tree.dot > iris_tree.png
 ```
 
 ---
-#### Chapter 7 | Decision Trees
+#### Chapter 7 | Ensemble Learning and Random Forests
+**Introduction**
+* Ensemble learning is a technique in which you aggregate the predictions of a group of predictors (such as classifiers and regressors).
+* A group of predictors is called an ensemble.
+* An ensemble learning algorithm is called an ensemble method.
+* An example of an ensemble method is Random Forests, which is an ensemble of Decision Trees.
+* Some of the most common ensemble methods are bagging, Random Forests, boosting, an stacking.
+
+**Voting Classifiers**
+* A very simple way to create an even better classifier is to aggregate the predictions of each classifier and predict the class that gets the most votes.
+    * This majority-vote classifier is called a hard voting classifier.
+* The voting classifier often achieves a higher accuracy than the best classifier in the ensemble
+* Ensemble methods work best when the predictors are independent from one another as possible.
+    * One way to be sure of this is to use very different algorithms. This increases the chances that they will make very different types of errors, improving the ensemble's accuracy.
+* Example of voting classifier:
+```
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import Voting Classifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score
+
+log_clf = LogisticRegression()
+rf_clf = RandomForestClassifier()
+svm_clf = SVC()
+
+voting_clf = VotingClassifier(
+    estimator=[('lr', log_clf, ('rf', rf_clf), ('svc', svm_clf))],
+    voting='hard'
+    )
+
+voting_clf.fit(X_train, y_train)
+
+for clf in (log_clf, rf_clf, svm_clf, voting_clf):
+    clf.fit(X_train, y_train)
+    y_pred = clf.predict(X_test)
+    print(clf.__class__.__name__, accuracy_score(y_test, y_pred))
+```
+* If all classifiers are able to estimate class probabilities (i.e., they have a `predict_proba()` method), then you can tell sklearn to predict the class with the highest class probability, averaged over all the individual classifiers.
+     * This is called soft voting.
+     * Soft voting often achieves higher performance than hard voting because it gives weight to highly confident votes.
+     * To use soft voting, all you need to do is replace `voting='hard'` with `voting='soft'` and ensure that all classifiers can estimate class probabilities.
+     * This is not the case for the SVC class by default, so you need to set it's `probability` hyperparameter to `True` (this will make the SVC class use cross-validation to estimate class probabilities, slowing down training, and it will add a `predict_proba()` method.)
+
+**Bagging and Pasting**
+* One way to get a diverse set of classifiers is to use very different training algorithms.
+* Another approach is to use the same training algorithm for every predictor, but to train them on different random subsets of the training set.
+    * When sampling is performed with replacement, this method is called bagging (short for bootstrap aggregating).
+    * When sampling is performed without replacement, it is called pasting.
+* The ensemble that results form bagging has a similar bias but a lower variance than a single predictor trained on the original training set.
+* Bagging and pasting scale well because each individual tree can be fit in parallel.
+* Bagging often outperforms pasting.
+
+**Our-of-Bag Evaluation**
+* With bagging, some instances may be sampled several times for any given predictor, while others may not be sampled at all.
+* By default `BaggingClassifier` samples *m* training instances with replacement (`bootstrap=True`), where *m* is the size of the training set.
+* This means that only about 63% of the training instances are sampled on average for each predictor.
+* The remaining 37% of the training instances that are not sampled are called out-of-bag (oob) instances.
+    * These are not the same 37% for all predictors!
+* You can then in theory use these oob to test your predictor.
+
+**Random Forests**
+* The Random Forest algorithm introduces extra randomness when growing trees; instead of searching for the very best feature when splitting a node, it searches for the best feature among a random subset of features.
+* This results in a greater tree diversity, which trades a higher bias for a lower variance, generally yielding an overall better model.
+* When you are growing a tree in a Random Forest, at each node only a random subset of the features is considered for splitting.
+
+**Feature Importance**
+* Another great quality of Random Forests is that they make it easy to measure the relative importance of each feature.
+* sklearn measures a feature's importance by looking at how much the tree nodes that use that feature reduce impurity on average (across all trees in the forest).
+    * More precisely, it is a weighted average, where each node's weight is equal to the number of training samples that are associated with it.
+* sklearn computes this score automatically for each feature after training, then it scales the results so that the sum of all importances is equal to 1.
+* Feature Importance Example:
+```
+from sklearn.datasets import load_iris
+from sklearn.enseamble import RandomForestClassifier
+
+iris = load_iris()
+
+rf_clf = RandomForestClassifier(n_estimators=500, n_jobs=-1)
+rf_clf.fit(iris['data'], iris['target'])
+for name, score in zip(iris['feature_names'], rf_clf.feature_importances_):
+    print(name, score)
+```
+
+**Boosting**
+* Boosting (originally called hypothesis boosting) refers to any ensemble method that can combine several weak learners into a strong learner.
+* The general idea of most boosting methods is to train predictors sequentially, each trying to correct its predecessor.
+* The two most popular boosting methods are AdaBoost and Gradient Boosting.
+* The one drawback of boosting methods is they cannot be parallelized, since each predictor can only be trained after the previous predictor has been trained and evaluated.
+    * I.e., it doesn't scale as well as other models.
+
+**AdaBoost**
+* To build an AdaBoost classifier, a first base classifier (such as a Decision Tree) is trained and used to make predictions on the training set. The relative weight of misclassified training instances is then increased. A second classifier is trained using the updated weights and gain it makes predictions on the training set, weights are updated and so on.
+
+**Gradient Boosting**
+* Just like AdaBoost, Gradient Boosting works by sequentially adding predictors to an ensemble, each one correcting its predecessor.
+* However, instead of tweaking the instance weights at every iteration like AdaBoost does, this method tries to fit the new predictor to the residual error make by the previous predictor.
+* In order to find the optimal number of trees, you can use early stopping.
+* Stochastic Gradient Descent speeds up the training phase of Gradient Boosting.
+
+**Stacking**
+* Stacking is short for stacked generalization.
+* It is based on a simple idea: instead of using trivial functions (such as hard voting) to aggregate the predictions of all predictors in an ensemble, why don't we train a model to perform this aggregation?
+* This final model is called a blender.
+* Unfortunately, sklearn does not support stacking directly.
+
+---
+#### Chapter 8 | Dimensionality Reduction
+**The Curse of Dimensionality**
+* Most points in a high-dimensional hypercube are very close to the extremes in at least one feature.
+    * Fun fact: anyone you know is probably an extremest in at least one dimension (e.g., how much sugar they put in their coffee), if you consider enough dimensions.
+* High dimensional datasets are at risk of being very sparse: most training instances are likely to be far away from each other.
+    * This means that a new instance will likely be far away from any training instance, making predictions much less reliable than in lower dimensions, since they will be based on much larger extrapolations.
+* The more dimensions the training set has, the greater the risk of overfitting it.
+
+**Main Approaches for Dimensionality Reduction**
+* There are two main approaches to reducing dimensionality:
+    1) Projection
+        * In most real-world problems, training instances are not spread out uniformly across all dimensions.
+        * Many features are almost constant, while others are highly correlated.
+        * As a result, all training instances actually lie within (or close to) a much lower-dimensional subspace of the high-dimensional space.
+        * Thus, we can squash higher dimensions into lower dimensions.
+    2) Manifold Learning
+        * However, in some settings (i.e., the swiss roll dataset) it does not make sense to squash higher dimensions into lower dimensions.
+            * You instead want to unroll the data.
+* If you reduce the dimensionality of your training set before training a model, it will definitely speed up training, but it may not always lead to a better or simpler solution; it all depends on the dataset.
+
+**PCA**
+* Principal Component Analysis (PCA) is by far the most popular dimensionality reduction algorithm.
+* PCA identifies the axis that accounts for the largest amount of variance in the training set. It also finds a second axis, orthogonal to the first one, that accounts for the largest amount of remaining variance. If it were a higher-dimensional dataset, PCA would also find a third axis, orthogonal to both previous axes, and a fourth, and a fifth, and so on - as many axes as the number of dimensions in the dataset.
+* The unit vector that defines the i^th^ axis is called the i^th^ principal component.
+* We can find principal components using a standard matrix factorization technique called Singular Value Decomposition (SVD) that can decompose the training set matrix **X** into the dot product of three matrices **U**, **E**, and **V**, where **V** contains all the principal components.
+* PCA in sklearn:
+```
+pca = PCA(n_components=2)
+X2D = pca.fit_transform(X)
+```
+* To access the explained variance of each principle component:
+```
+pca.explained_variance_ratio_
+```
+* Instead of arbitrarily choosing the number of dimensions to reduce down to, it is generally preferable to choose the number of dimensions that add up to a sufficiently large portion of the variance (e.g., 95%).
+    * Unless you are reducing dimensionality for data visualization - in that case you will generally want to reduce the dimensionality down to 2 or 3.
+    * You can do this via:
+    ```
+    pca = PCA(n_components=0.95)
+    X_reduced = pca.fit_transform(X)
+    ```
+    * An alternative way to do this would be to visualize a scree plot.
+* Other types of dimensionality reduction:
+    * t-Distribution Stochastic Neighbor Embedding (t-SNE): reduces dimensionality while trying to keep similar instances close and dissimilar instances apart. It's mostly used for visualize clusters of instances in high-dimensional space.
+    * Linear Discriminant Analysis (LDA): Actually a classification algorithm but during training it learns the most discriminative axes between the classes and these axes can then be used to define a hyperplane onto which to project the data.
+
+---
+#### Chapter 9 | Up and Running with TensorFlow
