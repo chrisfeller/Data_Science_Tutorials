@@ -294,5 +294,93 @@
 * Our cost function for neural networks is going to be a generalization of the one we used for logistic regression.
 * [Cost Function Reading](https://stats.stackexchange.com/questions/154879/a-list-of-cost-functions-used-in-neural-networks-alongside-applications)
 
-**Backpropagation Algorithm**
+**Backpropagation Algorithm/Intuition**
 * Backpropagation is neural-network terminology for minimizing our cost function, just like what we were doing with gradient descent in logistic and linear regression.
+* Initializing all weights to zero does not work in neural networks.
+* When we backpropogate, all nodes will update to the same value repeatedly.
+* Instead we should randomly initialize all of the weights between 0 and 1.
+
+**Putting It All Together**
+* When building a neural network you must begin by picking a network architecture.
+    * By architecture we mean connectivity pattern between neurons.
+    * The number of input units is the same as the dimension of features in the training data.
+    * The number of output units is equal to the number of classes.
+    * A reasonable default is to use one hidden layer.
+    * If instead you have >1 hidden layers, have the same number of hidden units in every layer (usually the more the better).
+* Next, to train a neural network:
+    1) Randomly initialize weights
+    2) Implement forward propogation
+    3) Compute cost function
+    4) Implement backprop to compute partial derivatives
+    5) Use gradient checking to compare computed partial derivative terms from backpropogation and from using numerical estimate of gradient.
+    6) Use gradient descent or advanced optimization method with backpropogation to try to minimize the cost function.
+
+---
+#### Week 6 | Advice for Applying Machine Learning
+**Deciding What to Try Next**
+* What should you do if your model is overfitting the training data:
+    * Get more training data
+    * Try a smaller set of features
+    * Try getting additional features
+    * Try adding polynomial features
+    * Try decreasing lambda (the regularization term)
+    * Try increasing lambda (the regularization term)
+* Machine learning diagnostic: a test that you can run to gain insight into what is/isn't working with a learning algorithm, and gain guidance as to how to best improve its performance.
+    * Diagnostics can take time to implement, but doing so can be a very good use of your time.
+
+**Evaluating a Hypothesis**
+* A hypothesis may have a low error for the training examples but still be inaccurate (because of overfitting). Thus, to evaluate a hypothesis, given a dataset of training examples, we can split up the data into two sets: a training set and a test set. Typically, the training set consists of 70 % of your data and the test set is the remaining 30 %.
+* The procedure for train/test split involves training your data on the training set and then calculating the test error on the test set to get an idea of how well your model will generalize to new data.
+
+**Model Selection and Train/Validation/Test Sets**
+* Just because a learning algorithm fits a training set well, that does not mean it is a good hypothesis. It could over fit and as a result your predictions on the test set would be poor.
+* The error of your hypothesis as measured on the data set with which you trained the parameters will be lower than the error on any other data set.
+* Given many models with different polynomial degrees, we can use a systematic approach to identify the 'best' function. In order to choose the model of your hypothesis, you can test each degree of polynomial and look at the error result.
+* One way to break down our dataset into the three sets is:
+    * Training set: 60%
+    * Cross validation set: 20%
+    * Test set: 20%
+* We can now calculate three separate error values for the three different sets using the following method:
+    1) Optimize the parameters using the training set for each polynomial degree.
+    2) Find the polynomial degree d with the least error using the cross validation set.
+    3) Estimate the generalization error using the test set with the parameters from the polynomial with the lowest error.
+* This way, the degree of the polynomial d has not been trained using the test set.
+
+**Diagnosing Bias vs. Variance**
+* When your model doesn't generalize well it's because you either have a bias problem or a variance problem.
+* High bias is underfitting and high variance is overfitting. Ideally, we need to find a golden mean between these two.
+* The training error will tend to decrease as we increase the complexity of the model.
+* At the same time, the cross validation error will tend to decrease as we increase complexity up to a point, and then it will increase as complexity is increased, forming a convex curve.
+<br>
+![Bias-Variance](https://d3c33hcgiwev3.cloudfront.net/imageAssetProxy.v1/I4dRkz_pEeeHpAqQsW8qwg_bed7efdd48c13e8f75624c817fb39684_fixed.png?expiry=1522972800000&hmac=4EQ_B34PPTuBxG9ybv-f2J95Z2l8A7n6GVWIq2NmFoM)
+
+**Regularization and Bias/Variance**
+* As our regularization increases, our fit becomes more rigid and we underfit the data.
+* As the regularization approaches 0, we tend to overfit the data.
+* Use cross-validation to determine the optimized regularization parameter.
+
+**Learning Curves**
+* If a learning algorithm is suffering from high bias, getting more training data will not (by itself) help much.
+![High Bias](https://d3c33hcgiwev3.cloudfront.net/imageAssetProxy.v1/bpAOvt9uEeaQlg5FcsXQDA_ecad653e01ee824b231ff8b5df7208d9_2-am.png?expiry=1522972800000&hmac=xwMAX2qurHGTOBNvWb6w1UvYEEjWwL-Tx13Ov2Ito-s)
+* If a learning algorithm is suffering from high variance, getting more data is likely to help.
+![High Variance](https://d3c33hcgiwev3.cloudfront.net/imageAssetProxy.v1/vqlG7t9uEeaizBK307J26A_3e3e9f42b5e3ce9e3466a0416c4368ee_ITu3antfEeam4BLcQYZr8Q_37fe6be97e7b0740d1871ba99d4c2ed9_300px-Learning1.png?expiry=1522972800000&hmac=-AqndA5hB5C65h5JhyAcyoQtQL_GU4zTDphXFKwe3hY)
+
+**Deciding What to Do Next Revisited**
+* If your model has large test errors you can:
+    * Try getting more training examples (fixes high variance)
+    * Try smaller sets of features (fixes high variance)
+    * Try getting additional features (fixes high bias)
+    * Try adding polynomial features (fixes high bias)
+    * Try decreasing lambda (the regularization term) (fixes high bias)
+    * Try increasing lambda (the regularization term) (fixes high variance)
+* How does this relate to neural networks:
+    * 'small' neural networks with fewer parameters (hidden layers) are prone to underfitting, but is computationally cheaper.
+    * 'large' neural networks with more parameters (hidden layers) are prone to overfitting and are computationally more expensive.
+        * We use regularization to address overfitting.
+    * Using a single hidden layer is a good starting default. You can train your neural network on a number of hidden layers using your cross validation set. You can then select the one that performs best.
+* Model complexity effects:
+    * Lower-order polynomials (low model complexity) have high bias and low variance. In this case, the model fits poorly consistently.
+    * Higher-order polynomials (high model complexity) fit the training data extremely well and the test data extremely poorly. These have low bias on the training data, but very high variance.
+    * In reality, we would want to choose a model somewhere in between, that can generalize well but also fits the data reasonably well.
+
+**Prioritizing What to Work On**

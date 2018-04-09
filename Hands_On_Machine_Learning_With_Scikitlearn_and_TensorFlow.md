@@ -963,3 +963,263 @@ pca.explained_variance_ratio_
 
 ---
 #### Chapter 9 | Up and Running with TensorFlow
+**Introduction**
+* TensorFlow is a powerful open source software library for numerical computation, particularly well suited and fine-tuned for large-scale Machine Learning.
+* It's basic principle is simple: you first define in Python a graph of computations to perform and then TensorFlow takes that graph and runs it efficiently using optimized C++ code.
+    * Most importantly, it is possible to break up the graph into several chunks and run them in parallel across multiple CPUs or GPUs.
+* TensorFlow also supports distributed computing, so you can train colossal neural networks on humongous training sets in a reasonable amount of time by splitting the computations across hundreds of servers.
+* Developed by the Google Brain team and it powers many of Google's large-scale services.
+* TensorFlow's clean design, scalability, flexibility, and great documentation (not to mention Google's name) quicklly boosted it to the top of the list of best open source Deep Learning libraries.
+    * TensorFlow was designed to be flexible, scalable, and production-ready, and existing frameworks arguably hit only two out of the three of these.
+
+**TensorFlow Highlights**
+* IT runs not only on Windows, Linux, and macOS, but also on mobile devices, including both iOS and Android.
+* It provides a very simple Python API, which is compatible with sklearn.
+* It also provides another simple API to simplify building, training, and evaluating neural networks.
+*  Several other high-level APIs have been built independently on top of TensorFlow, such as Keras and Pretty Tensor.
+* It's main Python API offers much more flexibility (at the cost of higher complexity) to create all sorts of computations, including any neural network architecture you can think of.
+* It includes highly efficient C++ implementations of many ML operations, particularly those needed to build neural networks.
+* It provides several advanced optimization nodes to search for the parameters that minimize a cost function. These are very to use since TensorFlow automatically takes care of computing the gradients of the functions you define.
+    * This is called automatic differentiating (or autodiff).
+* It also comes with a great visualization tool called TensorBoard that allows you to browse through the computation graph, view learning curves, and more.
+* Google also launched a cloud services to run TensorFlow graphs.
+
+**Creating Your First Graph and Running It in a Session**
+* Create a first graph to represent the function `f(x,y) = x**2*y+y+2`
+```
+import tensorflow as tf
+
+x = tf.Variable(3, name='x')
+y = tf.Variable(4, name='y')
+f = x*x*y + y + 2
+```
+* The previous code does not actually perform any computation, it just creates a computation graph. Even the variables are not initialized yet.
+* To actually evaluate this graph, you need to open a TensorFlow session and use it to initialize the variables and evaluate `f`.
+    * A TensorFlow session takes care of placing the operations onto devices such as CPUs and GPUs and running them, and it holds all the variable values.
+* To create a session, initialize the variables, evaluate `f`, and close the session:
+```
+sess = tf.Session()
+sess.run(x.initializer)
+sess.run(y.initializer)
+result = sess.run(f)
+print(result)
+sess.close()
+```
+* To create a more reproducible session (that closes automatically):
+```
+with tf.Session() as sess:
+    x.initializer.run()
+    y.initializer.run()
+    result = f.eval()
+```
+* Instead of manually running the initializer for every single variable you can use the `gloabal_variables_initializer()` function:
+```
+init = tf.global_variables_initializer()
+
+with tf.Session() as sess:
+    init.run()
+    result = f.eval()
+```
+* An alternative to the above regular `Session` is to use an `InteractiveSession` when in a Jupyter notebook or python shell:
+    * This makes it so you don't have to use the `with` statement
+```
+sess = tf.InteractiveSession()
+init.run()
+result = f.eval()
+print(result)
+sess.close()
+```
+* A TensorFlow program is typically split into two parts: the first part builds a computation graph (this is called the construction phase), and the second part runs it (this is the execution phase).
+    * This construction phase typically builds a computation graph representing the ML model and the computations required to train it.
+    * The execution phase generally runs a loop that evaluates a training step repeatedly (for example, one per mini-batch), gradually improving the model parameters.
+
+**Managing Graphs**
+* Any node you create is automatically added to the default graph:
+```
+x1 = tf.Variable(1)
+x1.graph is tf.get_default_graph()
+```
+* If you instead want to manage multiple independent graphs:
+```
+graph = tf.Graph()
+with graph.as_default():
+    x2 = tf.Variable(2)
+
+x2.graph is graph
+x2.graph is tf.get_default_graph()
+```
+* To reset the default graph:
+```
+tf.reset_default_graph()
+```
+
+**Lifecycle of a Node Value**
+* When you evaluate a node, TensorFlow automatically determines the set of nodes that it depends on and it evaluates these nodes first.
+* A variable starts its life when its initializer is run, and it ends when the session is closed.
+
+**Linear Regression with TensorFlow**
+* TensorFlow operations (aka ops) can take any number of inputs and produce any number of outputs.
+    * For example, the addition and multiplication ops each take two inputs and produce one output.
+* Constants add variables take no input (they are called source ops).
+* The inputs and outputs are multidimensional arrays, called tensors (hence the name 'tensorflow').
+    * Just like NumPy arrays, tensors have a type and a shape.
+    * The Python API tensors are simply represented by NumPy ndarrays.
+    * They typically contain floats, but you can also use them to carry strings.
+* Linear Regression Example on California Housing Data:
+```
+import tensorflow as tf
+import numpy as np
+from sklearn.datasets import fetch_california_housing
+
+housing = fetch_california_housing()
+m, n = housing.data.shape
+
+# Add a bias input feature to all training instances
+housing_data_plus_bias = np.c_[np.ones((m, 1)), housing.data]
+
+X = tf.constant(housing_data_plus_bias, dtype=tf.float32, name='X')
+y = tf.constant(housing.target.reshape(-1, 1), dtype=tf.float32, name='y')
+XT = tf.transpose(X)
+theta = tf.matmul(tf.matmul(tf.matrix_inverse(tf.matmul(XT, X)), XT), y)
+
+with tf.Session() as sess:
+    theta_value = theta.eval()
+```
+
+**Implementing Gradient Descent**
+```
+import tensorflow as tf
+import numpy as np
+from sklearn.datasets import fetch_california_housing
+from sklearn.preprocessing import StandardScaler
+
+housing_data_plus_bias = np.c_[np.ones((m, 1)), housing.data]
+scaler = StandardScaler()
+scaled_housing_data_plus_bias = scaler.fit_transform(housing_data_plus_bias)
+
+n_epochs = 1000
+learning_rate = 0.01
+
+X = tf.constant(scaled_housing_data_plus_bias, dtype=tf.float32, name='X')
+y = tf.constant(housing.target.reshape(-1,1), dtype=tf.float32, name='y')
+theta = tf.Variable(tf.random_uniform([n + 1, 1], -1.0, 1.0), name='theta')
+
+y_pred = tf.matmul(X, theta, name='prediction')
+error = y_pred - 1
+
+mse = tf.reduce_mean(tf.square(error), name='mse')
+gradients = 2/m * tf.matmul(tf.transpose(X), error)
+training_op = tf.assign(theta, theta - learning_rate * gradients)
+
+init = tf.global_variables_initializer()
+
+with tf.Session() as sess:
+    sess.run(init)
+    for epoch in range(n_epochs):
+        if epoch % 100 == 0:
+            print('Epoch', epoch, 'MSE = ', mse.eval())
+        sess.run(training_op)
+
+    best_theta = theta.eval()
+```
+
+**Using autodiff**
+* TensorFlow's autodiff feature automatically and efficiently computes the gradient for you.
+* Just replace the `gradients = ...` line in the previous example with:
+```
+gradients = tf.gradients(msw, [theta])[0]
+```
+
+**Using an Optimizer**
+* To use an optimizer out of the box, replace the preceding `gradients = ...` and `training_op = ...` lines with:
+```
+optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
+training_op = optimizer.minimize(mse)
+```
+
+**Feeding Data to the Training Algorithm**
+* To use placeholder nodes:
+```
+A = tf.placeholder(tf.float32, shape=(None, 3))
+B = A + 5
+with tf.Session() as sess:
+    B_val_1 = B.eval(feed_Dict={A: [[1, 2, 3]]})
+    B_val_2 = B.eval(feed_dict={A: [[4, 5, 6], [7, 8, 9]]})
+```
+
+**Saving and Restoring Models**
+* Once you have trained your model, you should save its parameters to disk so you can come back to it whenever you want it, use it in another program, and compare it to other models.
+* TensorFlow makes saving and restoring a model very easy.
+    * Just create a `Saver` node at the end of the construction phase (after all variable nodes are created).
+    * Then in the execution phase, just call its `save()` method whenever you want to save the model.
+* Example:
+```
+theta = tf.Variable(tf.random_uniform([n + 1, 1], -1.0, 1.0), name='theta')
+
+init = tf.global_variables_initializer()
+saver = ft.train.Saver()
+
+with tf.Session() as sess:
+    sess.run(init)
+
+    for epoch in range(n_epochs):
+        # checkpoint save every 100 epochs
+        if epoch % 100 == 0:
+            save_path = saver.save(sess, '/tmp/my_model.ckpt')
+
+        sess.run(training_op)
+
+    best_theta = theta.eval()
+    save_path = saver.save(sess, 'tmp/my_model_final.ckpt')
+```
+* Restoring a model is easy, you create a `Saver` at the end of the construction phase just like before, but then at the beginning of the execution phase, instead of initializing the variables using the `init` node, you call the `restore()` method of the `Saver` object:
+```
+with tf.Session() as sess:
+    saver.response(Sess, '/tmp/my_model_final.ckpt')
+```
+* By default a `Saver` saves and restores all variables under their own name, but if you need more control, you can specify which variables to save or restore, and what names to use.
+    * For example, in the below we will save and restore only the theta variable under the name 'weights':
+    ```
+    saver = tf.train.Saver({'weights': theta})
+    ```
+* Be default the `save()` method also saves the structure of the graph in a second file with the same name plus a `.meta` extension.
+* You can load this graph struture using `tf.train.import_meta_graph()`.
+* This adds the graph to the default graph, and retuns a `Saver` instance that you can then use to restore the graph's state (i.e., the variable values):
+```
+saver = tf.train.import_meta_graph('/tmp/my_model_final.ckpt.meta')
+
+with tf.Session() as sess:
+    saver.restore(sess, '/tmp/my_model_final.ckpt')
+```
+* This allows you to fully restore a saved model, including both the graph structure and the variable values, without having to search for the code that built it.
+
+**Visualizing the Graph and Training Curves Using TensorBoard**
+* TensorBoard displays interactive visualizations of training stats in your web browser (e.g., learning curves).
+* You can also provide it the graph's definition and it will give you a great interface to browse through it.
+    * This is very useful to identify errors in the graph, to find bottlenecks, and so on.
+* To run TensorBoard:
+```
+$ tensorboard --logdir tf_logs/
+```
+* Then navigate to `http://0.0.0.0:6006`
+
+**Name Scopes**
+* When dealing with more complex models such as neural networks, the graph can easily become cluttered with thousands of nodes.
+    * To avoid this, you can create name scopes to group related nodes.
+* Example:
+```
+with tf.name_scope('loss') as scope:
+    error = y_pred - y
+    mse = tf.reduce_mean(tf.square(error), name='mse')
+```
+
+---
+#### Chapter 10 | Introduction to Artificial Neural Networks
+**Introduction**
+ANNs are at the very core of Deep Learning. They are versatile powerful, and scalable, making them ideal to tackle large and highly complex Machine Learning tasks.
+
+**From Biological to Artificial Neurons**
+* ANNs were first introduced back in 1943 as a way to present a simplified computational model of how biological neurons might work together in animal brains to perform complex computations using propositional logic.
+* However, their popularity and use is only now increasing because:
+    * There is now a huge quantity of data available to train neural networks, and ANNs frequently outperform other ML techniques on very large and complex problems.
+    * The tremendous
