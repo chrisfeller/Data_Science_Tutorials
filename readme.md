@@ -25,6 +25,8 @@ Collection of notes from various data science tutorials and textbooks. Original 
 
 * [Hands-On Machine Learning with Scikit-Learn and TensorFlow](https://www.amazon.com/Hands-Machine-Learning-Scikit-Learn-TensorFlow/dp/1491962291)
 
+* [Spark: The Definitive Guide](https://www.amazon.com/Spark-Definitive-Guide-Processing-Simple/dp/1491912219)
+
 * [Data School Web Scraping w/ Python](https://www.youtube.com/watch?v=r_xb0vF1uMc)
 
 * [Web Scrape Basketball-Reference](https://youtu.be/2RW9zSQF1Sk)
