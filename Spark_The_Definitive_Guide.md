@@ -150,3 +150,236 @@ spark.sql("SELECT max(count) FROM flightData2015").take(1)
 flightData2015.select(max('count')).take(1)
 ```
 * The execution plan is a directed acyclic graph (DAG) of transformations, each resulting in a new immutable DataFrame, on which we can call an action to generate a result.
+
+#### Chapter 3 | A Tour of Spark's Toolset
+**Datasets: Type-Safe Structured APIs**
+* Not available in Python and R (only Java and Scala) because those languages are dynamically typed.
+
+**Structured Streaming**
+* Structured Streaming is a high-level API for stream processing that became production-ready in Spark 2.2.
+* With Structured Streaming, you can take the same operations that you perform in batch mode using Spark's structured APIs and run them in a streaming fashion.
+
+**Machine Learning and Advanced Analytics**
+* Spark is able to perform large-scale machine learning with it's built-in library of machine learning algorithms called MLlib.
+* MLlib allows for preprocessing, munging, training, and making predictions at scale on data.
+
+**Lower-Level APIs**
+* Virtually everything in Spark is built on top of Resilient Distributed Datasets (RDDs).
+* There are basically no instances in modern Spark, for which you should be using RDDs instead of structured APIs beyond manipulating some very raw unprocessed and unstructured data.
+
+#### Chapter 4: Structured API Overview
+**DataFrames and Datasets**
+* DataFrames and Datasets are (distributed) table-like collections with well-defined rows and columns.
+* Tables and views are basically the same thing as DataFrames. We just execute SQL against them instead of DataFrame code.
+
+**Schemas**
+* A schema defines the column names and types of a DataFrame.
+
+**DataFrames vs. Datasets**
+* Datasets are only available to Java Virtual Machine (JVM)-based languages (Scala and Java).
+
+**Spark Types**
+* Import Types:
+```
+from pyspark.sql.types import *
+```
+
+| Data Type  | Value type in Python  | API to access or create a data type  |
+|---|---|---|
+| ByteType  | int or long  | `ByteType()`  |
+| ShortType  | int or long  | `ShortType()`  |
+| IntegerType  | int or long  | `IntegerType()`  |
+| LongType  | long  | `LongType()`  |
+| FloatType  | float  | `FloatType()`  |
+| DoubleType  | float  | `DoubleType()`  |
+| DecimalType  | decimal.Decimal  | `DecimalType()`  |
+| StringType  | string  | `StringType()`  |
+| BinaryType  | bytearray  | `BinaryType()`  |
+| BooleanType  | bool  | `BooleanType()`  |
+| TimestampType  | datetime.datetime  | `TimestampType()`  |
+| DateType  | datetime.date  | `DateType()`  |
+| ArrayType | list, tuple, or array | `ArrayType(elementType)` |
+| MapType | dict | `MapType(keyType, valueType)` |
+| StructType | list or tuple | `StructType(fields)` |
+| StructField | The value type in Python of the data type of this field | `StructField(name, dataType)`|
+
+**Overview of Structured API Execution**
+1. Write DataFrame/Dataset/SQL Code
+2. If valid code, Spark converts this to a Logical Plan
+3. Spark transforms this Logical Plan to a Physical Plan, checking for optimizations along the way
+4. Spark then executes this Physical Plan (RDD manipulations) on the cluster.
+
+#### Chapter 5 | Basic Structured Operations
+**Schemas**
+* A schema defines the column names and types of a DataFrame.
+* To print the schema of a DataFrame:
+```
+df.printSchema()
+```
+* When using Spark for production Extract, Transform, Load (ETL), it is often a good idea to define your schemas manually, especially when working with untyped data sources like CSV and JSON.
+* An example of how to enforce a specific schema on a DataFrame:
+```
+from pyspark.sql.types import StructField, StructType, StringType, LongType
+
+myManualSchema = StructType([
+    StructField('DEST_COUNTRY_NAME', StringType(), True),
+    StructField('ORIGIN_COUNTRY_NAME', StringType(), True),
+    StructField('count', LongType(), False, metadata={'hello':'world'})
+    ])
+
+df = spark.read.format('json').schema(myManualSchema).load('data/flight-data/json/2015-summary.json')
+```
+
+**Columns**
+* To refer to a specific DataFrame's column:
+```
+from pyspark.sql.functions import col
+df.col('column_name')
+```
+* To access a DataFrame's columns:
+```
+df.columns
+```
+
+**select and selectExpr**
+* `select` and `selectExpr` allow you to do the DataFrame equivalent of SQL queries on a table of data.
+* In the simplest possible terms, you can use them to manipulate columns in your DataFrames.
+* To select a column:
+```
+df.select('col_name').show()
+```
+* To select multiple columns:
+```
+df.select('col_name1', 'col_name2').show()
+```
+* To select a column and rename it:
+```
+df.select(expr('col_name AS col_rename')).show()
+
+# OR
+
+df.select('col_names').alias('col_rename').show()
+
+# OR
+
+df.selectExpr('col_name AS col_rename').show()
+```
+* We can treat `selectExpr` as a simple way to build up complex expressions that create new DataFrames similar to SQL:
+```
+df.selectExpr('avg(col_name)', 'count(distinct(col_name))'').show()
+```
+
+**Adding Columns**
+* To add a column:
+```
+df.withColumn('new_column', 'old_column' * 2).show()
+```
+* `.withColumn()` takes two arguments: the column name and the expression that will create the value for that given row in the DataFrame.
+* You can also rename a column this way.
+
+**Renaming Columns**
+* To rename a column:
+```
+df.withColumnRenamed('new_name', 'old_name')
+```
+
+**Case Sensitivity**
+* By default, Spark is case insensitive
+
+**Removing Columns**
+* To remove a column:
+```
+df.drop('col_name')
+```
+* To drop multiple columns:
+```
+df.drop('col_name1', 'col_name2')
+```
+
+**Changing a Column's Type (Cast)**
+* To change a column from string to int:
+```
+df.withColumn('col_name', col('col_name').cast('int'))
+```
+
+**Filtering Rows**
+* `.filter()` and `.where()` each work for filtering rows
+* Example:
+```
+df.filter(col('col_name') < 2)
+df.where('col_name < 2')
+```
+* To perform multiple filters, chain them together:
+```
+df.where(col('col_name') < 2).where(col('col_name') > 5)
+```
+
+**Getting Unique Rows**
+* To get the unique values in a row:
+```
+df.select('col_name').distinct()
+```
+
+**Random Samples**
+* To randomly sample some records from your DataFrame:
+```
+withReplacement = True
+fraction=0.5
+seed=42
+df.sample(withReplacement, fraction, seed).show()
+```
+
+**Concatenating and Appending Rows (Union)**
+* To append to a DataFrame, you must union the original DataFrame along with the new DataFrame
+    - This just concatenates the two DataFrames
+* To union two DataFrames, you must be sure that they have the same schema and number of columns; otherwise, the union will fail.
+    - Unions are currently performed based on location, not on schema. This means that columns will not automatically line up the way you think they might.
+```
+df.union(newdf)
+```
+
+**Sorting Rows**
+* Can be done with either `.sort()` or `.orderBy()`
+* They accept both column expressions and strings as well as multiple columns.
+* The default is to sort in ascending order
+```
+df.sort('col_name')
+df.orderBy('col_name1', 'col_name2')
+
+# OR
+df.sort(col('col_name'))
+df.orderBy(col('col_name1'), col('col_name2'))
+```
+* To specify sort direction:
+```
+from pyspark.sql.functions import desc, asc
+df.orderBy('col_name').desc()
+```
+
+**Limit**
+* To restrict what you extract from a DataFrame use `.limit()`:
+```
+df.limit(10)
+```
+* Similar to `.head()` in pandas.
+
+**Repartition and Coalesce**
+* To get the number of partitions:
+```
+df.rdd.getNumPartitions()
+```
+* You should typically only repartition when the future number of partitions is greater than your current number of partitions or when you are looking to partition by a set of columns
+* To repartition:
+```
+df.repartition(5)
+```
+* To repartition by a certain column:
+```
+df.repartition(col('col_name'))
+```
+
+**Collecting Rows to the Driver**
+* `.collect()` gets all data from the entire DataFrame, `.take()` selects the first *N* rows, and `.show()` prints out a number of rows nicely.
+* Any collection of data to the driver can be a very expensive operation! If you have a large dataset and call `.collect()` you can crash the driver.
+
+#### Chapter 6 | Working with Different Types of Data
