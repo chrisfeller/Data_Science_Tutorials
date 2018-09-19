@@ -383,3 +383,359 @@ df.repartition(col('col_name'))
 * Any collection of data to the driver can be a very expensive operation! If you have a large dataset and call `.collect()` you can crash the driver.
 
 #### Chapter 6 | Working with Different Types of Data
+
+#### Chapter 24 | Advanced Analytics and Machine Learning Overview
+**SParkML vs. Spark MLlib**
+  * MLlib consists of two packages that leverage different core data structures.
+    - `spark.ml` includes an interface for use with DataFrames and a high-level interface for building machine learning pipelines.
+    - `spark.mllib` includes an interface for Spark's low-level RDD APIs.
+
+**High-Level MLlib Concepts**
+* In MLlib there are several fundamental 'structural' types: transformers, estimators, evaluators, and pipelines.
+  - *Transformers* are functions that convert raw data in some way.
+    - Primarily used in preprocessing and feature engineering.
+    - Take a DataFrame as an input and produce a new DataFrame as an output.
+    - Ex: Create a new variable, normalize a variable, or change the datatype of a variable.
+  - *Estimators* are transformers that are initialized with data (think `.fit()`)
+    - In Spark's nomenclature, algorithms that allow users to train a model from data are referred to as estimators.
+  - *Evaluators* allow us to see how a given model performs according to a criteria.
+  - *Pipelines*  are an easy way to specify stages made up of various transformers, estimators, and evaluators.
+    - Similar to scikit-learn's pipeline concept. [Tutorial Here.](https://github.com/chrisfeller/Scikit_Learn_Pipeline_Presentation/blob/master/Jupyter_Notebook/An_Introduction_to_Pipelines_in_Scikit_Learn.ipynb)
+
+**Low-Level MLlib Concepts**
+* There are several lower-level data types you may need to work with in MLlib:
+  - `Vector`: Whenever we pass a set of features into a machine learning model, we must do it as a vector that consists of `Doubles`
+    - Most common lower-level data type
+    - Vectors can be either sparse (most elements are zero) or dense (where there are many unique values)
+      - To create a dense vector, specify an array of all the values.
+        ```
+        from pyspark.ml.linalg import Vectors
+        denseVec = Vectors.dense(1.0, 2.0, 3.0)
+        ```
+      - To Create a sparse vector, specify the total size, indices, and values of the non-zero elements.
+        ```
+        from pyspark.ml.linalg import Vectors
+        size = 3
+        idx = [1, 2] # locations of non-zero elements in vector
+        values = [1.0, 2.0]
+        sparseVec = Vectors.sparse(size, idx, values)
+        ```
+      - Sparse vectors are the best format, when the majority of values are zero as this is a more compressed representation.
+
+**Feature Engineering with Transformers**
+* Transformers help us manipulate our current columns in one way or another.
+* In MLlib, all inputs to machine learning algorithms in Spark must consist of type `Double` (for lables) and `Vector[Double]` (for features).
+* Examples: `VectorAssembler`, `StringIndexer`, `OneHotEncoder`, `Tokenizer`
+
+**Estimators**
+* To instantiate or fit any model, Spark MLlib uses the default labels `label` and `features`.
+* Example:
+  ```
+  from pyspark.ml.classification import LogisticRegression
+  lr = LogisticRegression(labelCol='label', featuresCol='features')
+  ```
+* To fit a model:
+  ```
+  lr_fitted = lr.fit(train)
+  ```
+* Unlike transformers, fitting a machine learning model is eager and performed immediately in Spark.
+* To predict on a model:
+  ```
+  lr_fitted.transform(train).select('label', 'prediction')
+  ```
+
+**Pipelining Our Workflow (Pipeing it Up)**
+  * Pipelines allow you to specify your workload as a declarative set of stages (pipeline) that includes all of your transformations as well as tuning your hyperparameters.
+  * Put another way, Pipelines allow you to set up a dataflow of the relevant transformations that ends with an estimator that is automatically tuned according to your specifications, resulting in a tuned model ready for use.
+  * It is essential that instances of transformers or models are not reused across different pipelines.
+    - Always create a new instance of a model before creating another pipeline.
+  * Simple example:
+    ```
+    from pyspark.ml.feature import RFormula
+    from pyspark.ml.classification import LogisticRegression
+    from pyspark.ml import Pipeline
+
+    df = spark.read.json('/data/simple-ml')
+    train, test = df.randomSplit([0.7, 0.3])
+
+    rForm = RFormula()
+    lr = LogisticRegression(labelCol='label', featuresCol='features')
+
+    stages = [rForm, lr]
+    pipeline = Pipeline().setStages(stages)
+    ```
+
+**Training and Evaluation**
+* We can test different hyperparameters in the entire pipeline:
+  ```
+  from pyspark.ml.tuning import ParamGridBuilder
+  params = ParamGridBuilder().addGrid(rForm.formula, [
+                                'lab ~. + color:value1',
+                                'lab ~. + color:value1 + color:value2'])\
+                             .addGrid(lr.elasticNetParam, [0.0, 0.5, 1.0])\
+                             .addGrid(lr.regParam, [1.0, 2.0])\
+                             .buiild()
+  ```
+* In the above example, we're tuning two different versions of `RFormula`, which includes simple variable interactions, three different options for the `ElasticNet` parameter, and two different options for the regularization parameter.
+* Now that the param grid is built, we must specify our evaluation process.
+  - The `evaluator` allows us to automatically and objectively compare multiple models to the same evaluation metric.
+  - There are multiple evaluators for regression and classification.
+* Example:
+  ```
+  from pyspark.ml.evaluation import BinaryClassificationEvaluator
+  evaluator = BinaryClassificationEvaluator()\
+              .setMetricName('areaUnderROC')\
+              .setRawPredictionCol('prediction')\
+              .setLabelCol('label')
+  ```
+* We can not cross validate to select the best params:
+    ```
+    from pyspark.ml.tuning import CrossValidator
+    crossval = CrossValidator()\
+               .setEstimatorParamMaps(params)\
+               .setEstimator(pipeline)\
+               .setEvaluator(evaluator)
+    ```
+* To then evaluate the model :
+  ```
+  crossval_fitted = crossval.fit(train)
+  evaluator.evaluate(crossval_fitted.transform(test)) # Rreturns test metric
+  ```
+* To then save the model:
+  ```
+  crossval_fitted.write.overwrite().save('tmp/modelLocation')
+  ```
+* To then load the model in another Spark program:
+  ```
+  model = CrossValidationModel.load('/tmp/modelLocation')
+  prediction = model.transform(new_data)
+  ```
+
+#### Chapter 25 | Preprocessing and Feature Engineering
+**Formatting Model Inputs**
+* In the case of most classification and regression algorithms, you want to get your data into a column of type `Double` to represent the label and a column of type `Vector` (either dense or sparse) to represent the features.
+* In the case of unsupervised learning, a column of type `Vector` (either dense or sparse) is needed to represent the features.
+* The best way to get your data in these formats is through transformers.
+  * Transformers are functions that accept a DataFrame as an argument and returns a new DataFrame as a response.
+  * Transformers are imported from `pyspark.ml.feature` with docs located [here]('http://spark.apache.org/docs/latest/ml-features.html')
+
+**Example Datasets**
+  ```
+  sales = spark.read.format('csv')\
+               .option('header', 'true')\
+               .option('inferSchema', 'true')\
+               .load('/data/retail-data/by-day/*.csv')\
+               .coalesce(5)\
+               .where('Description IS NOT NULL')
+
+  fakeIntDF = spark.read.parquet('/data/simple-ml-integers')
+  simpleDF = spark.read.json('/data/simple-ml')
+  scaleDF = spark.read.parquet('/data/simple-ml-scaling')
+  ```
+* Note: MLlib does not play nicely with null values at this point in time (thus they're filtered out above). Improvements are being made with each Spark release to improve algorithm handling of null values.
+
+**Transformers**
+* Transformers are functions that convert raw data in some way.
+* Spark's transformer only includes a transform method.
+* It doesn't 'learn' from the data, thus there is no fit method.
+
+**Estimators for Preprocessing**
+* An estimator is necessary when a transformation you would like to perform must be initialized with data or information about the input column (often derived by doing a pass over the input column itself).
+* In effect, an estimator can be a transformer configured according to your particular input data.
+
+**Transformer Properties**
+* All transformers require you to specify, at a minimum, the `inputCol` and the `outputCol`, which represent the column name of the input and output, respectively.
+  - There are defaults associated with these but it is best practice to manually specify them for clarity.
+* Estimators require you to `fit` the transformer to your particular dataset and then call `transform` on the resulting object.
+
+**High-Level Transformers**
+* In general, you should try to use the highest-level transformers you can, in order to minimize the risk of error.
+* `RFormula` is an example of a high-level transformer.
+
+**RFormula**
+* `RFormula` is the easiest transformer to use when dealing with 'conventional' formatted data.
+* Spark borrows this transformer from the R language to make it simple to declaratively specify a set of transformations for your data.
+* `RFormula` can handle either numerical or categorical inputs as it will automatically strings (categoricals) via one-hot encoding.
+  - If the label is type string, it will use `StringIndexer` to convert it to type `Double`
+* `RFormula` allows you to specify your transformations in declarative syntax with basic operators:
+  - `~` Separate target and terms
+  - `+` Concatenate terms; `+ 0` means removing the intercept (this means the y-intercept of the line that we will fit will be 0)
+  - `-` Remove a term; `- 1` means removing intercept (this means the y-intercept of the line that we will fit will be 0)
+  - `:` Interaction (multiplication for numeric values, or binarized categorical values)
+  - `.` All columns except the target/dependent variable
+* Example in which we want to use all available variables (the `.`) and then specify an interaction between `value1` and `color` and `value2` and `color` as additional features:
+  ```
+  from pyspark.ml.feature import RFormula
+
+  supervised = RFormula(formula='lab ~ . + color:value1 + color:value2')
+  supervised.fit(simpleDF).transform(simpleDF)
+  ```
+
+**SQL Transformers**
+* A SQL Transformer allows you to leverage Spark's vast library of SQL-related manipulations just as you would a MLlib transformation.
+  - The only think you need to change is that instead of using a table name, you should use the keyword `THIS`
+* SQL Transformers are most useful in formally codifying some DataFrame manipulations as a preprocessing step or to try different SQL expressions for features during hyperparameter tuning.
+* Example:
+  ```
+  from pyspark.ml.feature import SQLTransformer
+
+  basicTransformation = SQLTransformer()\
+                        .setStatement("""
+                          SELECT sum(Quantity), count(*), CustomerID
+                          FROM __THIS__
+                          GROUP BY CustomerID
+                          """)
+
+  basicTransformation.transform(sales)
+  ```
+
+**VectorAssembler**
+* The `VectorAssembler` is a tool you'll use in nearly every single pipeline you generate.
+* `VectorAssembler` concatenates all of your features into one big vector that you can pass into an estimator.
+* Typically used in the last step of a machine learning pipeline.
+* Can take as input a number of columns of type `Boolean`, `Double`, or `Vector`.
+* Particularly useful if you're performing a number of manipulations using a variety of transformers and need to gather all of those results together.
+* Example:
+  ```
+  from pyspark.ml.feature import VectorAssembler
+  va.VectorAssembler().setInputCols(['int1', 'int2', 'int3'])
+  va.transform(fakeIntDF)
+  ```
+
+**Working with Continuous Features**
+* There are two common transformers for continuous features.
+  1) Convert continuous features into categorical features via a process called bucketing
+  2) Scale and normalize your features
+* These transformers will only work on `Double` types so make sure you've turned all any numerical values to `Double`
+  - ```contDF = spark.range(20).selectExpr('cast(id as double)')```
+
+**Bucketing**
+* The most straightforward approach to bucketing or binning is using the `Bucketizer` transformer.
+* This will split a given continuous feature into the buckets of your designation.
+* You specify how buckets should be created via an array or list of `Double` values.
+  * The minimum value in your splits array must be less than the minimum value in your DataFrame.
+  * The maximum value in you rsplits array must be greater than the maximum value in your DataFrame.
+  * You need to specify at a minimum three values in the splits array, which creates two buckets.
+  * To specify all possible ranges: `float('inf')` and `float('-inf')`
+* Example:
+  ```
+  from pyspark.ml.feature import Bucketizer
+  bucketBorders = [-1.0, 5.0, 10.0, 250.0, 600.0]
+  bucketer = Bucketizer().setSplits(bucketBorders).setInputCol('id')
+  bucketer.transform(contDF)
+  ```
+* Another option is to split based on percentiles in the data via `QuantileDiscretizer`.
+* Example:
+  ```
+  from pyspark.ml.feature import QuantileDiscretizer
+  bucketer = QuantileDiscretizer().setNumBuckets(5).setInputCol('id')
+  fittedBucketer = bucketer.fit(contDF)
+  fittedBucketer.transform(contDF)
+  ```
+
+**StandardScaler**
+* `StandardScaler` standardizes a set of features to have zero mean and standard deviation of 1.
+* Centering can be very expensive on sparse vectors because it generally turns them into dense vectors, so be careful before centering your data.
+* Example:
+  ```
+  sScaler = StandardScaler().setInputCol('features')
+  sScaler.fit(scaleDF).transform(scaleDF)
+  ```
+
+**MinMaxScaler**
+* `MinMaxScaler` will scale the values in a vector (component wise) to the proportional values on a scale from a given min value to a max value.
+  - If you specify the minimum value to be 0 and the maximum value to be 1, then all the values will fall between 0 and 1.
+* Example:
+  ```
+  from pyspark.ml.feature import MinMaxScaler
+  minMax = MinMaxScaler().setMin(5).SetMax(10).setInputCol('features')
+  fittedminMax = minMax.fit(scaleDF)
+  fittedminMax.transform(scaleDF)
+  ```
+
+**MaxAbsScaler**
+* `MaxAbsScaler` scales the data by dividing each value by the maximum absolute value in the feature.
+  - All values therefore end up between -1 and 1.
+  - This transformer does not shift or center the data at all in this process.
+* Example:
+  ```
+  from pyspark.ml.feature import MaxAbsScaler
+  maScaler = MaxAbsScaler().setInputCol('features')
+  fittedmaScaler = maScaler.fit(scaleDF)
+  fittedmaScaler.transform(scaleDF)
+  ```
+
+**ElementwiseProduct**
+* `ElementwiseProduct` scales each value in a vector by an arbitrary value.
+* Example:
+  ```
+  from pyspark.ml.feature import ElementwiseProduct
+  from pyspark.ml.linalg import Vectors
+  scaleUpVec = Vectors.dense(10.0, 15.0, 20.0)
+  scalingUp = ElementwiseProduct()\
+              .setScalingVec(scaleUpVec)\
+              .setInputCol('features')
+  scalingUp.transform(scaleDF)
+  ```
+
+**Normalizer**
+* `Normalizer` scales multidimensional vectors using one of several power norms, set through the parameter `p`.
+  - For example, Manhattan norm is `p=1` and Euclidean norm is `p=2`
+* Example:
+  ```
+  from pyspark.ml.features import Normalizer
+  manhattanDistance = Normalizer().setP(1).setInputCol('features')
+  manhattanDistance.transform(scaleDF)
+  ```
+
+**Working with Categorical Features**
+* The most common task for categorical features is indexing.
+  - Indexing converts a categorical variable in a column to a numerical one that you can plug into machine learning algorithms.
+* It is recommended that you re-index every categorical variable when pre-processing for consistency's sake.
+
+**StringIndexer**
+* The simplest way to index is via `StringIndexer`, which maps strings to different numerical IDs.
+* `StringIndexer` also creates metadata attached to the DataFrame that specify what inputs correspond to what outputs.
+  - This allows us to later get inputs back from their respective index values.
+* Example:
+  ```
+  from pyspark.ml.feature import StringIndexer
+  lblIndxr = StringIndexer().setInputCol('lab').setOutputCol('labelInd')
+  idxRes = lblIndxr.fit(simpleDF).transform(simpleDF)
+  ```
+
+**IndexToString**
+* `IndexToString` converts indexed values back to the original categories.
+* Example:
+  ```
+  from pyspark.ml.features import IndexToString
+  labelReverse = IndexToString().setInputCol('labelInd')
+  labelReverse.transform(idxRes) # idxRes comes from output of StringIndexer in previous section
+  ```
+
+**Indexing in Vectors**
+* `VectorIndexer` is a helpful tool for working with categorical variables that are already found inside of vectors in your dataset.
+* `VectorIndexer` will automatically find categorical features inside of your input vectors and convert them to categorical features with zero-based category indices.
+
+**One-Hot Encoding**
+* Example:
+  ```
+  from pyspark.ml.feature import OneHotEncoder, StringIndexer
+  lblIndxr = StringIndexer().setInputCol('color').setOutputCol('colorInd')
+  colorLab = lblIndxr.fit(simpleDF).transform(simpleDF.select('color'))
+  ohe = OneHotEncoder().setInputCol('colorInd')
+  one.transform(colorLab)
+  ```
+
+**Text Data Transformers**
+* There are generally two kinds of text forms; free-form text and string categorical variables. The previous section covered transformers to deal with string categorical variables. The following are transformers to deal with free-form text.
+
+**Tokenizing Text**
+* Tokenization is the process of converting free-form text into a list of 'tokens' or individual words.
+  - By taking a string of words, separated by whitespace, and converting them into an array of words.
+* Example:
+  ```
+  from pyspark.ml.feature import Tokenizer
+  tnk = Tokenizer().setInputCol('Description').setOutputCol('DescOut')
+  tokenized = tnk.transform(sales.select('Description'))
+  ```
