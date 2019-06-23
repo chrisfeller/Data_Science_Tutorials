@@ -383,6 +383,66 @@ df.repartition(col('col_name'))
 * Any collection of data to the driver can be a very expensive operation! If you have a large dataset and call `.collect()` you can crash the driver.
 
 #### Chapter 6 | Working with Different Types of Data
+**Rounding Numbers**
+* By default, the `round` function rounds up if you're exactly in between two numbers.
+    - If instead you want to round down, use `bround`
+
+**Calculating Correlation**
+* Two ways to calculate correlation:
+    ```
+    from pyspark.sql.functions import corr
+    df.stat.corr('column1', 'column2')
+    df.select(corr('column1', 'column2'))
+    ```
+
+**Calculating Descriptive Statistics**
+* To show descriptive statistics of a dataframe:
+    ```
+    df.describe().show()
+    ```
+* To show descriptive statistics for one column:
+    ```
+    df.select('column').describe()
+    ```
+* You can also use functions from the StatFunctions Package. For example to calculate the median:
+    ```
+    df.stat.approxQuantile('column', [0.5], 0)
+    ```
+* To display a cross-tabulation or frequent item pairs:
+    ```
+    df.stat.crosstab('column1', 'column2')
+
+    df.stat.freqItems([]'column1', 'column2']))
+    ```
+* If you need to generate an `id` column for a DataFrame:
+    ```
+    df.withColumn('id', monotonically_increasing_id())
+    ```
+
+**Working With Strings**
+* To capitalize every word in a given string when that word is separated from another by a space:
+    ```
+    from spark.sql.functions import initcap
+    df.select(initcap(col('column')))
+    ```
+* To cast strings in uppercase or lowercase:
+    ```
+    from pyspark.sql.functions import upper, lower
+    df.select(col('column'), upper(col('column')), lower(col('column')))
+    ```
+* To add or remove spaces around a string:
+    ```
+    from pyspark.sql.functions import lit, ltrim, rtrim, rpad, lpad, trim
+    df.select(ltrim(lit('    HELLO    ')).as('ltrim'),
+            rtrim(lit('    HELLO    ')).as('rtrim'),
+            trim(lit('    HELLO    ')).as('trim'),
+            lpad(lit('HELLO')).as('lp'),
+            rpad(lit('HELLO')).as('rp'))
+    ```
+
+**Regular Expressions**
+* There are two key functions in Spark that you'll need in order to perform regular expression tasks: `regexp_extract` and `regexp_replace`.
+* To    
 
 #### Chapter 24 | Advanced Analytics and Machine Learning Overview
 **SParkML vs. Spark MLlib**
