@@ -13,6 +13,8 @@ Collection of notes from various data science tutorials and textbooks. Original 
 
 * [Python for Data Analysis](https://www.amazon.com/Python-Data-Analysis-Wrangling-IPython/dp/1449319793)
 
+* [Pandas Styling](https://pbpython.com/styling-pandas.html)
+
 * [Data School Scikit-learn Tutorial](https://www.youtube.com/watch?v=elojMnjn4kk&list=PL5-da3qGB5ICeMbQuqbbCOQWcS6OYBr5A&index=1)
 
 * [An Introduction to Statistical Learning](https://www.amazon.com/Introduction-Statistical-Learning-Applications-Statistics/dp/1461471370)
