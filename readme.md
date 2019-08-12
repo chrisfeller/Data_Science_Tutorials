@@ -41,4 +41,6 @@ Collection of notes from various data science tutorials and textbooks. Original 
 
 * [PostgreSQL](https://www.postgresql.org/docs/9.6/static/index.html)
 
+* [R Shiny Apps](https://shiny.rstudio.com/tutorial/)
+
 * [Neural Networks](https://deeplearning4j.org/neuralnet-overview)
