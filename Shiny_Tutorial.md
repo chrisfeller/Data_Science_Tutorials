@@ -335,3 +335,257 @@ sliderInput(inputId = 'num',
 ---
 
 #### Part 3: How to Customize Appearance
+**Working with the HTML UI**
+* The `fluidPage()` call is using the R language to assemble HTML code.
+* We then use `input*()` and `output*()` functions to add reactive content.
+* All of this is then saved to `ui` as the user interface
+
+**Add Static Content**
+* When writing R, you add content with tags functions
+* Shiny provides R functions to recreate HTML tags
+* In R `tags$h1()` is the equivalent of `<h1></h1>` in HTML
+* Similarly, in R `tags%a()` is the equivalent of `<a></a>` in HTML
+
+**Tags**
+* There are 110 tag options in `tags`
+    * To view these: `names(tag)`
+* Tags are a list but the elements in the list are functions
+    * Example: `tags$h1()` instead of `tags$h1`
+* Tags Syntax
+    * Example:
+    ```
+    tags$a(href = 'www.rstudio.com', 'RStudio')
+    ```
+* To add raw text:
+    ```
+    fluidPage('This is a block of text')
+    ```
+* To add a paragraph:
+    ```
+    fluidPage(
+        tags$p('This is paragraph 1'),
+        tags$p('This is paragraph 2')
+        )
+    ```
+* To italicize text:
+    ```
+    fluidPage(
+        tags$em('This is italicized text')
+        )
+    ```
+* To add a code snipped:
+    ```
+    fluidpage(
+        tags$code('This is a code snipped')
+        )
+    ```
+* To insert a line break:
+    ```
+    fluidPage(
+        'Line of text 1',
+        tags$br(),
+        'Line of text 2'
+        )
+    ```
+* To insert a horizontal line:
+    ```
+    fluidPage(
+        'This is a Shiny app',
+        tags$hr(),
+        'It is also a web page.'
+        )
+    ```
+* To add an image:
+    ```
+    fluidPage(
+        tags$img(height = 100,
+                 width = 100,
+                 src = 'http://www.rstudio.com/images/RStudio.2x.png')
+        )
+    ```
+    * You can set `src` to a url or a file path which exists inside of a separate folder called `www`. You don't need to preface the path with `www`.
+
+**Nesting Tags**
+* To add tags together in one another:
+    ```
+    fluidPage(
+        tags$p('This is a',
+            tags$strong('Shiny'),
+            'app.')
+        )
+    ```
+
+**Wrapper Functions**
+* Some tags functions come with a wrapper function, so you do not need to call `tags$`
+* Functions that have an associated wrapper:
+    1. `a()`: hyperlink
+    2. `br()`: line break
+    3. `code()`: code snippet
+    4. `em()`: italicized text
+    5. `h1()...h6()`: headers
+    6. `hr()`: horizontal line
+    7. `img()`: image
+    8. `p()`: paragraph
+    9. `strong()`: bold
+
+**Passing HTML to R Shiny App**
+* You can also pass raw HTML code into `fluidPage()`:
+    ```
+    fluidPage(HTML(actual html code here))
+    ```
+
+**Creating a Layout**
+* You can determine where objects appear within the app using layout functions
+* Layout functions add HTML that divides the UI into a grid
+* The two main functions are:
+    1. `fluidRow()`
+    2. `column(width = 2)`
+
+**`fluidRow()`**
+* `fluidRow()` adds rows to the grid. Each new row goes below the previous rows
+* Example:
+    ```
+    ui <- fluidPage(
+            fluidRow(),
+            fluidRow()
+        )
+    ```
+
+**`column()`**
+* `column()` adds columns within a row. Each new column goes to the left of the previous column.
+* Specify the width and offset of each column out of 12
+    * Width is how wide a column is (the max width of a column is 12)
+    * Offset is how far to the left the column should appear
+    * Width is a mandatory argument, while offset is optional
+* Example:
+    ```
+    ui <- fluidPage(
+        fluidRow(
+            column(3),
+            column(5)),
+        fluidRow(
+            column(4, offset = 8)
+            )
+        )
+    ```
+* To place an element in the grid, call it as an argument of a layout function:
+    ```
+    fluidRow('In the row')
+
+    # OR
+
+    column(2, plotOutput('hist'))
+    ```
+
+**Assemble Layers of Panels**
+* Panels are the basic functionality in Shiny to group multiple elements into a single unit with it's own properties.
+* Panels are created via the `wellPanel()` function.
+    * Groups elements into a grey 'well'
+* A visual way to group objects
+* There are 12 Panel Types:
+    1. `absolutePanel()`: Panel position set rigidly (absolutely), not fluidly
+    2. `conditionalPanel()`: A JavaScript expression determines whether panel is visible or not
+    3. `fixedPanel()`: Panel is fixed to browser window and does not scroll with the page
+    4. `headerPanel()`: Panel for the app's title, used with `pageWithSidebar()`
+    5. `inputPanel()`: Panel with grey background, suitable for grouping inputs
+    6. `mainPanel()`: Panel for displaying output, used with `pageWithSidebar()`
+    7. `navlistPanel()`: Panel for displaying multiple stacked `tabPanels()`. Uses sidebar navigation.
+    8. `sidebarPanel()`: Panel for displaying a sidebar of inputs, used with `pageWithSidebar()`
+    9. `tabPanel()`: Stackable panel. Used with `navPanel()` and `tabsetPanel()`
+    10. `tabsetPanel()`: Panel for displaying multiple stacked `tabPanels()`. Uses tab navigation.
+    11. `titlePanel()`: Panel for the app's title, used with `pageWithSidebar()`
+    12. `wellPanel()`: Panel with grey background.
+
+**`tabPanel()`**
+* `tabPanel()` creates a stackable layer of elements. Each tab is like a small UI of its own.
+* Each tab needs a title
+* Example:
+    ```
+    tabPanel('Tab 1 Title', element)
+    ```
+* Used to work with `tabsetPanel()`, `navlistPanel()`, and `navbarPage()`
+
+**`tabsetPanel()`**
+* `tabsetPanel()` combines tabs into a single panel. Uses tabs to navigate between tabs.
+* Example:
+    ```
+    fluidPage(
+        tabsetPanel('tab 1', 'contents'),
+        tabPanel('tab 2', 'contents'),
+        tabPanel('tab 3', 'contents')
+        )
+    ```
+
+**`navlistPanel()`**
+* `navlistPanel()` combines tabs into a single panel. Use links to navigate between tabs.
+* Example:
+    ```
+    fluidPage(
+        tabPanel('tab 1', 'contents'),
+        tabPanel('tab 2', 'contents'),
+        tabPanel('tab 3', 'contents')
+        )
+    ```
+
+**Shiny Layout Guide**
+* [Link Here](http://shiny.rstudio.com/articles/layout-guide.html)
+
+**Use a Prepackaged Layout**
+* One of the most common ways to build a Shiny App is with `sidebarLayout()`
+* Use `sidebarPanel()` and `mainPanel()` to divide app into two sections.
+* Example:
+    ```
+    ui <- fluidPage(
+        sidebarLayout(
+            sidebarPanel(),
+            mainPanel()
+            )
+        )
+    ```
+* Another common approach is to use `fixedPage()` which creates a page that defaults to a width of 724, 940, or 1170 pixels instead of `fluidPage()` or `fluidRow()` which adjusts to browser window.
+* Example:
+    ```
+    ui <- fixedPage(
+        fixedRow(
+            column(5, ...)
+            )
+        )
+    ```
+* A third common approach is `navbarPage()` combines tabs into a single page. `navbarPage` replaces `fluidPage()` and requires a title.
+* Example:
+    ```
+    navbarPage(title = 'Title',
+        tabPanel('tab 1', 'contents'),
+        tabPanel('tab 2', 'contents'),
+        tabPanel('tab 3', 'contents')
+        )
+    ```
+
+**`dashboardPage()`**
+* `dashboardPage()` comes in the shinydashboard package.
+* Pre-packed dashboard type layouts/
+```
+library(shinydashboard)
+ui <- dashboardpage(
+    dashboardHeader(),
+    dashboardSidebar(),
+    dashboardBody()
+    )
+```
+* [shinydashboards tutorial](http://rstudio.github.io/shinydashboards)
+* [shinydashboards webinar](www.rstudio.com/resources/webinars)
+
+**Style with CSS**
+* Cascading Style Sheets (CSS) are a framework for customizing the appearance of elements in a web page.
+* You can style a web page in three ways:
+    1. Link to an external CSS file
+    2. Write a global CSS in header
+    3. Write individual CSS in a tag's style attribute
+* Shiny uses the Bootstrap 3 CSS framework: getbootstrap.com
+* To link to an external CSS file put it in the `www` folder of your app directory. Then to use the theme from that .css file:
+```
+ui <- fluidPage(
+        theme = 'file.css'
+    )
+```
+* To learn CSS go through the [Codecademy Tutorial](http://www.codecademy.com/tracks/web)
