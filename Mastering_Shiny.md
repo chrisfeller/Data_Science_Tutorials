@@ -435,3 +435,782 @@ shinyApp(ui, server)
     - Answer: Interval to use when stepping between min and mix
 
 **Outputs**
+* Output functions in the UI specification create placeholders that are filled by the server function.
+* Like inputs, outputs take a unique ID as their first argument.
+    - If your UI specification creates an output with ID `plot`, you'll access it in the server function with `output$plot`.
+* Each `output` function on the frontend is coupled with a `render` function in the backend, like `output$plot <- renderPlot({...})`
+* There are three main types of outputs, corresponding to the three things you usually include in a report:
+    1. Text
+    2. Tables
+    3. Plots
+
+**Text**
+* Output regular text with `textOutput()` and code with `verbatimTextOutput()`
+* Example:
+    ```
+    ui <- fluidPage(
+        textOutput('text'),
+        verbatimTextOutput('code')
+        )
+
+    server <- function(input, output, session {
+        output$text <- renderText({
+            'Hello friend!'
+            })
+        output$code <- renderPrint({
+            summary(1:10)
+            })
+        })
+    ```
+* Note that there are two render functions that can be used with either of the text output functions:
+    1. `renderText()`: displays text *returned* by the code.
+    2. `renderPrint()`: displays text *printed* by the code.
+
+**Tables**
+* There are two options for displaying dataframes in tables:
+    1. `tableOutput()` and `renderTable()` render a static table of data, showing all the data at once.
+        - Most useful for small, fixed summaries
+    2. `dataTableOutput()` and `renderDataTable()` render a dynamic table, where only a fixed number of rows are shown at once, and the user can interact to see more.
+        - More appropriate if you want to expose a complete dataframe to a user.
+* Example:
+    ```
+    ui <- fluidPage(
+        tableOutput('static'),
+        dataTableOutput('dynamic')
+        )
+
+    server <- function(input, output, session) {
+        output$static <- renderTable({head(mtcars)})
+        output$dynamic <- renderDataTable({mtcars}, options = list(pageLength = 5))
+    }
+    ```
+
+**Plots**
+* You can display any type of R graphic with `plotOutput()` and `renderPlot()`
+* Example:
+    ```
+    ui <- fluidPage(
+        plotOutput('plot', width = '400px')
+        )
+
+    server <- function(input, output, session) {
+        output$plot <- renderPlot({plot(1:5)})
+    }
+    ```
+* By default, `plotOutput()` will take up the full width of the element it's embedded within and will be 400 pixels high. You can override these defaults with the `height` and `width` arguments.
+* Plots are special because they can also act as inputs. `plotOutput()` has a number of arguments like `click`, `dbclick`, and `hover`. If you pass these a string, like `click = 'plot_click'`, they'll create a reactive input (`input$plot_click`) that you can use to handle user interaction on the plot.
+
+**Exercise #1**
+* Re-create the Shiny app from the plots section, this time setting height to 300px and width to 700px.
+    - Answer:
+    ```
+    ui <- fluidPage(
+        plotOutput('plot', width = '700px', height = '300px')
+        )
+
+    server <- function(input, output, session) {
+        output$plot <- renderPlot({plot(1:5)})
+    }
+    ```
+
+**Exercise #2**
+* Update the options for renderDataTable() below so that the table is displayed, but nothing else.
+    - Answer:
+    ```
+    ui <- fluidPage(
+        dataTableOutput('table')
+        )
+
+    server <- function(input, output, session) {
+        output$table <- renderDataTable({mtcars}, options = list(dom = 't'))
+    }
+    ```
+
+**Layouts**
+* Layout functions allow you to arrange inputs and outputs on a page.
+* Provide a high-level visual structure of an app.
+* As we've seen in previous examples `fluidPage()` is the most common layout function.
+
+**Layout Overview**
+* Layouts are created by a hierarchy of function calls, where the hierarchy in R matches the hierarchy in the output.
+* When you see complex code layout code like this:
+```
+fluidPage(
+    titlePanel('Hello Shiny!'),
+    sidebarLayout(
+        sidebarPanel(
+            sliderInput('obs', 'Observations:', min = 0, max = 1000, value = 500)
+            ),
+        mainPanel(
+            plotOutput('distPlot')
+            )
+        )
+    )
+```
+First skim it by focusing on the hierarchy of the function calls:
+    1. `fluidPage()`
+    2. `titlePanel()`
+    3. `sidebarLayout()`
+        - `sidebarPanel()`
+            - `sliderInput()`
+        - `mainPanel()`
+            - `plotOutput()`
+Even without knowing anything about the layout functions you can read the function names to guess what this app is going to look like.
+    - A classic app design with a title bar at the top, followed by a sidebar (continuing a slider), and a main panel containing a plot.
+
+**Page Functions**
+* The page function sets up all the HTML, CSS, and JS that Shiny needs.
+* The most important, but least interesting, layout function is `fluidPage()`
+* `fluidPage()` uses a layout system balled Bootstrap that provides attractive defaults.
+* Technically, `fluidPage()` is all you need for an app, because you can put inputs and outputs directly inside of it. While this is fine to learn the basics of Shiny, dumping all the inputs and outputs in one place doesn't look very good, so for more complicated apps, you need to learn more layout functions.
+
+**Page with Sidebar**
+* `sidebarLayout()` makes it easy to create a two-column layout with inputs on the left and outputs on the right.
+* Example:
+    ```
+    fluidPage(
+        headerPanel(
+            # app title/description
+            ),
+        sidebarLayout(
+            sidebarPanel(
+                # inputs
+                ),
+            mainPanel(
+                # outputs
+                )
+            )
+    ```     
+* Example: Uses the same layout to create a simple app demonstrating the Central Limit Theorem
+    ```
+    ui <- fluidPage(
+        headerPanel('Central Limit Theorem'),
+        sidebarLayout(
+            sidebarPanel(
+                numericInput('m', 'Number of samples:', 2, min = 1, max = 100)),
+            mainPanel(
+                plotOutput('hist')
+                )
+            )
+        )
+
+    server <- function(input, output, server) {
+        output$hist <- renderPlot({
+            means <- replicate(1e4, mean(runif(input$m)))
+            hist(means, breaks = 20)
+            })
+    }
+    ```
+
+**Multi-Row**
+* Under the hood, `sidebarLayout()` is built on top of a flexible multi-row layout, which you can use this directly to create more visually complex apps.
+* As usual, you start with `fluidPage()`. Then you create rows with `fluidRow()`, and columns with `column()`
+* The basic code structure looks like this:
+```
+fluidPage(
+    fluidRow(
+        column(4,
+            ...
+            ),
+        column(8,
+            ...
+            )
+        ),
+    fluidRow(
+        column(6,
+            ...
+            ),
+        column(6,
+            ...)
+        )
+    )
+```
+* Note that the first argument in `column()` is the width, and the width of each row must add up to 12. This give you substantial flexibility because you can easily create 2-, 3-, or 4- column layouts (more than that starts to get cramped), or use narrow columns to create spacers.
+
+**Themes**
+* Creating a complete theme from scratch is a lot of work, but you can get some easy wins using a shinythemes package. The following code shows four options:
+```
+theme_demo <- function(theme) {
+    fluidPage(
+        theme = shinythemes::shinytheme(theme),
+        sidebarLayout(
+            sidebarPanel(
+                textInput('txt', 'TextInput:', 'text here'),
+                sliderInput('slider', 'Slider input:', min = 1, max = 100, value = 30)
+                ),
+            mainPanel(
+                h1('Header 1'),
+                h2('Header 2'),
+                p('Some text')
+                )
+            )
+        )
+}
+
+theme_demo('darkly')
+theme_demo('flatly')
+theme_demo('sandstone')
+theme_demo('united')
+```
+* To theme any app just pass `theme = shinythemes::shinytheme(theme)` to `fluidPage()`
+* For a gallery of pre-curated themes visit [here](https://shiny.rstudio.com/gallery/shiny-theme-selector.html)
+
+**Exercise #1**
+* Update the Central Limit Theorem app presented in the chapter so that the sidebar is on the right instead of the left.
+    - Answer:
+    ```
+    ui <- fluidPage(
+      headerPanel('Central Limit Theorem'),
+      sidebarLayout(
+        mainPanel(
+          plotOutput('hist')
+        ),
+        sidebarPanel(
+          numericInput('m', 'Number of samples:', 2, min = 1, max = 100)),    
+      )
+    )
+
+    server <- function(input, output, server) {
+      output$hist <- renderPlot({
+        means <- replicate(1e4, mean(runif(input$m)))
+        hist(means, breaks = 20)
+      })
+    }
+
+    shinyApp(ui, server)
+    ```
+
+**Exercise #2**
+* Browse the themes available in the shinythemes package, and update the theme of the app from the previous exercise.
+    - Answer:
+    ```
+    ui <- fluidPage(
+      theme = shinythemes::shinytheme('spacelab'),
+      headerPanel('Central Limit Theorem'),
+      sidebarLayout(
+        mainPanel(
+          plotOutput('hist')
+        ),
+        sidebarPanel(
+          numericInput('m', 'Number of samples:', 2, min = 1, max = 100)),    
+      )
+    )
+
+    server <- function(input, output, server) {
+      output$hist <- renderPlot({
+        means <- replicate(1e4, mean(runif(input$m)))
+        hist(means, breaks = 20)
+      })
+    }
+
+    shinyApp(ui, server)
+    ```
+
+**Under the Hood**
+* All input, output, and layout functions return HTML, the descriptive language that underpins every website.
+* You can see that HTML by executing UI functions directly in the console via:
+```
+fluidPage(
+    textInput('name', "What's your name?")
+    )
+```
+
+#### Chapter 4: Basic Reactivity
+**Introduction**
+* In Shiny, you express your server logic using reactive programming.
+* Reactive programming is an elegant and powerful programming paradigm, but it can be disorienting at first because it's a very different paradigm to writing a script.
+* The key idea of reactive programming is to specify a graph of dependencies so that when an input changes, all outputs are automatically updated. This makes the flow of an app considerably simpler.
+
+**The `server` Function**
+* As you've seen, the guts of every Shiny app looks like this:
+```
+library(shiny)
+
+ui <- fluidPage(
+    # Front-end interface
+    )
+
+server <- function(input, output, session){
+    # Back-end logic
+}
+
+shinyApp(ui, server)
+```
+* Instead of a single static object like `ui`, the backend is a function, `server()`
+* You'll never call the function yourself; instead, Shiny invokes it whenever a new session begins.
+    * A session captures the state of one live instance of a shiny app.
+    * A session begins each time the Shiny app is loaded in a browser, either by different people, or by the same person opening multiple tabs.
+    * The server function is called once for each session, creating a private scope that holds the unique state for that user, and every variable created inside the server function is only accessible to that session. This is why almost all of the reactive programming you'll do in Shiny will be inside the server function.
+* Server functions take three parameters:
+    1. `input`
+    2. `output`
+    3. `session`
+    * Because you never call the server function yourself, you'll never create these objects yourself. Instead, they're created by Shiny when the session begins, connecting back to a specific session.
+
+**Input**
+* The `input` argument is a list-like object that contains all the input data sent from the browser, named according to the input ID.
+* For example, if your UI contains a numeric input control with an input ID of `count`, like so:
+```
+ui <- fluidPage(
+    numericInput('count', label = 'Number of values', value = 100)
+    )
+```
+Then you can access the value of that input with `input$count`. It will initially contain the value `100`, and it will automatically update as the user changes the value in the browser.
+* Unlike a typically list, `input` objects are read-only. If you attempt to modify an input inside the server function, like in the example below, you'll get an error:
+```
+server <- function(input, output, session){
+    input$count <- 10 # can't do this!
+}
+
+shinyApp(ui, server)
+```
+* You'll also get an error if you try and read from an input while not in a reactive context created by a function like `renderText()` or `reactive()`. For example, you would get an error while trying to do the following:
+```
+server <- function(input, output, session) {
+    message('The value of input$count is', input$count)
+}
+
+shinyApp(ui, server)
+```
+
+**Output**
+* `output` is very similar to `input` as it's also a list-like object named according to the output ID.
+* The main difference is that you use it for sending output not receiving input.
+* You always use the `output` object in concert with a `render` function, as in the following example:
+    ```
+    ui <- fluidPage(
+        textOutput('greeting')
+        )
+
+    server <- function(input, output, session){
+        output$greeting <- renderText({'Hello Human!'})
+    }
+    ```
+* Like the `input` object, `output` is picking about how you use it. If you forget the `render` function, shown below, you will get an error.
+```
+server <- function(input, output, session){
+    output$greeting <- 'Hello human'
+}
+
+shinyApp(ui, server)
+```
+* You'll also get an error if you attempt to read from an output as demonstrated below:
+```
+server <- function(input, output, session){
+    message('The greeting is ', output$greeting)
+}
+
+shinyApp(ui, server)
+```
+* The `render` function does two things:
+    1. Sets up a reactive context that automatically tracks what inputs the outputs uses.
+    2. Converts the output of your R code into HTML suitable for display on a web page.
+
+**Reactive Programming**
+* An app is going to be pretty boring if it only has inputs or only has outputs. The real magic of Shiny happens when you have an app with both.
+* A simple example:
+```
+ui <- fluidPage(
+    textInput('name', "What's your name?"),
+    textOutput('greeting')
+    )
+
+server <- function(input, output, session) {
+    output$greeting <- renderText({
+        paste0('Hello ', input$name, "!")
+        })
+}
+```
+* In the above example, the output message updates automatically as you type.
+* This is a big idea in Shiny: you don't need to specify when the output code is run because Shiny automatically figures it out for you.
+
+**Imperative vs. Declarative Programming**
+* There are two important styles of programming:
+    1. Imperative: You issue a specific command and it's carried out immediately. This is the style of programming you're used to in your analysis scripts: you command R to load your data, transform it, visualize it, and save the results to disk.
+    2. Declarative: You express higher-level goals or describe important constraints, and rely on someone else to decide how and/or when to translate that into action.
+* Shiny uses declarative programming.
+* With imperative code you say 'make me a sandwich'. With declarative code you say 'ensure there is a sandwich in the refrigerator whenever I look inside of it.'
+* Imperative code is assertive, declarative code is passive-aggressive.
+
+**Lazyness**
+* One of the strengths of declarative programming in Shiny is that it allows apps to be extremely lazy.
+* A Shiny app will only ever do the minimal amount of work needed to update the output controls that you can currently see.
+
+**The Reactive Graph**
+* Shiny's laziness has another important property. In most R code, you can understand the order of execution by reading the code from top to bottom. That doesn't work in Shiny, because code is only run when needed.
+* To understand the order of execution you need to instead look at the reactive graph, which describes how inputs and outputs are connected.
+* As your app gets more complicated, it's often useful to make a quick high-level sketch of the reactive graph to remind you how all the pieces fit together.
+
+**Reactive Expressions**
+* A reactive expression is a tool that reduces duplication in your reactive code by introducing additional nodes into the reactive graph.
+* Example:
+    ```
+    server <- function(input, output, session) {
+        text <- reactive(paste0("Hello ", input$name, "!"))
+        output$greeting <- renderText(text())
+    }
+    ```
+
+**Execution Order**
+* The order in which reactive code is run is determined only by the reactive graph, not by its layout in the server function.
+
+**Reactive Expressions**
+* Reactive expressions are important for two reasons:
+    1. They help create efficient apps by giving Shiny more information so that it can do less recomputation when inputs change.
+    2. They make it easier for humans to understand the app by simplifying the reactive graph.
+* Reactive expressions have a flavor of both inputs and outputs:
+    - Like inputs, you can use the results of a reactive expression in an output.
+    - Like outputs, reactive expressions depend on inputs and automatically know when they need updating.
+* Because of this duality, some functions work with either reactive inputs or expressions, and some functions work with either reactive expressions or reactive outputs. We'll use **producers** to refer either reactive inputs or expressions, and **consumers** to refer to either reactive expressions or outputs.
+
+**Example App**
+* Motivation: Imagine I want to compare two simulated datasets with a plot and a hypothesis test. I’ve done a little experimentation and come up with the functions below: `histogram()` visualizes the two distributions with a histogram, and `t_test()` compares their means with with a t-test.
+```
+library(ggplot2)
+
+histogram <- function(x1, x2, binwidth = 0.1, xlim = c(-3, 3)) {
+  df <- data.frame(
+    x = c(x1, x2),
+    g = c(rep("x1", length(x1)), rep("x2", length(x2)))
+  )
+
+  ggplot(df, aes(x, fill = g)) +
+    geom_histogram(binwidth = binwidth) +
+    coord_cartesian(xlim = xlim)
+}
+
+t_test <- function(x1, x2) {
+  test <- t.test(x1, x2)
+
+  sprintf(
+    "p value: %0.3f\n[%0.2f, %0.2f]",
+    test$p.value, test$conf.int[1], test$conf.int[2]
+  )
+}
+
+x1 <- rnorm(100, mean = 0, sd = 0.5)
+x2 <- rnorm(200, mean = 0.15, sd = 0.9)
+
+histogram(x1, x2)
+t_test(x1, x2)
+```
+* You can move this same code into a Shiny app. Starting with the UI we'll use the following layout: The first row has three columns for input controls (distribution 1, distribution 2, and plot controls). The second row has a wide column for the plot, and a narrow column for the hypothesis test.
+```
+ui <- fluidPage(
+  fluidRow(
+    column(4,
+      "Distribution 1",
+      numericInput("n1", label = "n", value = 1000, min = 1),
+      numericInput("mean1", label = "µ", value = 0, step = 0.1),
+      numericInput("sd1", label = "σ", value = 0.5, min = 0.1, step = 0.1)
+    ),
+    column(4,
+      "Distribution 2",
+      numericInput("n2", label = "n", value = 1000, min = 1),
+      numericInput("mean2", label = "µ", value = 0, step = 0.1),
+      numericInput("sd2", label = "σ", value = 0.5, min = 0.1, step = 0.1)
+    ),
+    column(4,
+      "Histogram",
+      numericInput("binwidth", label = "Bin width", value = 0.1, step = 0.1),
+      sliderInput("range", label = "range", value = c(-3, 3), min = -5, max = 5)
+    )
+  ),
+  fluidRow(
+    column(9, plotOutput("hist")),
+    column(3, verbatimTextOutput("ttest"))
+  )
+)
+```
+* The server then calls the `histogram()` and `t_test()` functions:
+```
+server <- function(input, output, session) {
+  output$hist <- renderPlot({
+    x1 <- rnorm(input$n1, input$mean1, input$sd1)
+    x2 <- rnorm(input$n2, input$mean2, input$sd2)
+
+    histogram(x1, x2, binwidth = input$binwidth, xlim = input$range)
+  })
+
+  output$ttest <- renderText({
+    x1 <- rnorm(input$n1, input$mean1, input$sd1)
+    x2 <- rnorm(input$n2, input$mean2, input$sd2)
+
+    t_test(x1, x2)
+  })
+}
+```
+* We can improve upon the server function code above by creating reactive expressions for `x1` and `x2` to avoid repeating code.
+```
+server <- function(input, output, session) {
+  x1 <- reactive(rnorm(input$n_1, input$mean_1, input$sd_1))
+  x2 <- reactive(rnorm(input$n_2, input$mean_2, input$sd_2))
+
+  output$hist <- renderPlot({
+    histogram(x1(), x2(), binwidth = input$binwidth, xlim = input$range)
+  })
+
+  output$ttest <- renderText({
+    t_test(x1(), x2())
+  })
+}
+```
+
+**Controlling Timing of Evaluation**
+* To create another example app that involves a simulation that updates on a regular cadence we can take advantage of `reactiveTimer()`
+* In the following example, the app updates every 500 ms with a new simulated distribution.
+```
+ui <- fluidPage(
+  fluidRow(
+    column(3,
+      numericInput("lambda1", label = "lambda1", value = 1),
+      numericInput("lambda2", label = "lambda1", value = 1),
+      numericInput("n", label = "n", value = 1e4, min = 0)
+    ),
+    column(9, plotOutput("hist"))
+  )
+)
+
+server <- function(input, output, session) {
+  timer <- reactiveTimer(500)
+
+  x1 <- reactive({
+    timer()
+    rpois(input$n, input$lambda1)
+  })
+  x2 <- reactive({
+    timer()
+    rpois(input$n, input$lambda2)
+  })
+
+  output$hist <- renderPlot({
+    histogram(x1(), x2(), binwidth = 1, xlim = c(0, 40))
+  })
+}
+```
+
+**On Click**
+* You can also update an app on a user click via `actionButton()`
+* In the following example, we again simulate a distribution but this time we wait until the user clicks the button `Simulate!`
+* To do so we need to introduce a new tool called `eventReactive()`, which waits for an event such as a button click before starting the chain of events.
+```
+ui <- fluidPage(
+  fluidRow(
+    column(3,
+      numericInput("lambda1", label = "lambda1", value = 1),
+      numericInput("lambda2", label = "lambda1", value = 1),
+      numericInput("n", label = "n", value = 1e4, min = 0),
+      actionButton("simulate", "Simulate!")
+    ),
+    column(9, plotOutput("hist"))
+  )
+)
+
+server <- function(input, output, session) {
+  x1 <- eventReactive(input$simulate, {
+    rpois(input$n, input$lambda1)
+  })
+  x2 <- eventReactive(input$simulate, {
+    rpois(input$n, input$lambda2)
+  })
+
+  output$hist <- renderPlot({
+    histogram(x1(), x2(), binwidth = 1, xlim = c(0, 40))
+  })
+}
+```
+
+**Observers**
+* So far, we’ve focussed on what’s happening inside the app. But sometimes you need to reach outside of the app and cause side-effects to happen elsewhere in the world. This might be saving a file to a shared network drive, sending data to a web API, updating a database, or (most commonly) printing a debugging message to the console. These actions don’t affect how your app looks, so you can’t use an output and a render function. Instead you need to use an observer.
+* There are multiple ways to create an observer but the easiest is via `observeEvent()`.
+* `observeEvent()` is similar to `eventReactive()`
+* It has two important arguments `eventExpr` and `handlerExpr`
+    - The first argument is the input or expression to take a dependency on; the second argument is the code that will run.
+* For example, the following modification to server() means that every time that text is updated, a message will be sent to the console:
+```
+server <- function(input, output, session) {
+  text <- reactive(paste0("Hello ", input$name, "!"))
+
+  output$greeting <- renderText(text())
+  observeEvent(input$name, {
+    message("Greeting performed")
+  })
+}
+```
+* There are two important difference between `observeEvent()` and `eventReactive()`:
+    1. You don't assign the result of `observeEvent()` to a variable
+    2. Thus, you can't refer to it from other reactive consumers.
+
+#### Chapter 5: Case Study: Emergency Room Injuries    
+**Introduction**
+* As a short example of a real-life Shiny App, we'll build an app that showcases some data analysis.
+* Libraries we'll use:
+```
+library(shiny)
+library(vroom) # fast file reading
+library(tidyverse)
+
+
+```
+
+**The Data**
+* We'll use data from the National Electronic Injury Surveillance System (NEISS) that's collected by the Consumer Product Safety Commission.
+* The data includes 250,000 observations and 10 variables on injuries sustained in the US.
+* There are two additional dataframes we will join in, which have product and population information.
+* Load Data:
+```
+# Set Working Directory
+setwd('/USers/chrisfeller/Desktop/Mastering_Shiny/')
+
+injuries <- vroom::vroom('data/injuries.tsv.gz')
+products <- vroom::vroom('data/products.tsv')
+population <- vroom::vroom('data/population.tsv')
+```
+
+**Exploration**
+* Before we create the app, lets explore the data a little. We'll start by looking at the product associated with the most injuries: 1842 'stairs or steps'. First we'll pull out the injuries associated with this product.
+```
+selected <- injuries %>% filter(prod_code == 1842)
+nrow(selected)
+```
+* Next, let's look at some summaries of the diagnosis, body part, and location where the injury occurred. Note that we are weighting by the  `weight` variable so that the counts can be interpreted as estimated total injuries across the whole US.
+```
+selected %>% count(diag, wt = weight, sort = TRUE)
+
+selected %>% count(body_part, wt = weight, sort = TRUE)
+
+selected %>% count(location, wt = weight, sort = TRUE)
+```
+* Next, we'll make a plot to explore patterns across age and sex.
+```
+summary <- selected %>%
+            count(age, sex, wt = weight)
+
+summary %>%
+    ggplot(aes(age, n, colour = sex)) +
+    geom_line() +
+    labs(y = 'Estimated number of injuries')
+```
+* Next, we'll recreate the same plot but normalizing for population size.
+```
+summary <- selected %>%
+    count(age, sex, wt = weight) %>%
+    left_join(population, by = c('age', 'sex')) %>%
+    mutate(rate = n / population * 1e4)
+
+summary %>%
+    ggplot(aes(age, rate, colour = sex)) +
+    geom_line(na.rm = TRUE) +
+    labs(y = 'Injuries per 10,000 people')
+```
+* Lastly, we can look at some of the narratives of injuries.
+```
+selected %>%
+    sample_n(10) %>%
+    pull(narrative)
+```
+* Having done this exploration for one product, it would be very nice if we could easily do it for other products, without having to retype the code. A Shiny App is perfect for this.
+
+**Prototype**
+* When building a complex app, start as simple as possible, so you can confirm the basic mechanics work before you start doing something more complicated.
+* We will start with one input (the product code), three tables, and one plot.
+* It may be helpful to do a few pencil-and-paper sketches to explore the UI and reactive graph before committing to code.
+* We'll start with one row for the inputs, one row for all three tables (giving each table 4 columns, 1/3 of the 12 column width, and then one row for the plot).
+```
+ui <- fluidPage(
+    fluidRow(
+        column(6,
+            selectInput('code', 'Product', setNames(products$prod_code, products$title))
+            )
+        ),
+    fluidRow(
+        column(4, tableOutput('diag')),
+        column(4, tableOutput('body_part')),
+        column(4, tableOutput('location'))
+        ),
+    fluidRow(
+        column(12, plotOutput('age_sex'))
+        )
+    )
+```
+* For the server function, we'll convert the `selected` and `summary` variables to reactive expressions.
+    - This is a reasonably general pattern: you typically create create variables in your data analysis as a way of decomposing the analysis into steps, and avoiding having to recompute things multiple times, and reactive expressions play the same role in Shiny apps.
+    - Often it's a good idea to spend a little time cleaning up your analysis code before you start your Shiny app, so you can think about these problems in regular R code, before you add the additional complexity of reactivity.
+```
+server <- function(input, output, session) {
+      selected <- reactive(injuries %>% filter(prod_code == input$code))
+
+      output$diag <- renderTable(
+        selected() %>% count(diag, wt = weight, sort = TRUE)
+      )
+      output$body_part <- renderTable(
+        selected() %>% count(body_part, wt = weight, sort = TRUE)
+      )
+      output$location <- renderTable(
+        selected() %>% count(location, wt = weight, sort = TRUE)
+      )
+
+      summary <- reactive({
+        selected() %>%
+          count(age, sex, wt = weight) %>%
+          left_join(population, by = c("age", "sex")) %>%
+          mutate(rate = n / population * 1e4)
+      })
+
+      output$age_sex <- renderPlot({
+        summary() %>%
+          ggplot(aes(age, n, colour = sex)) +
+          geom_line() +
+          labs(y = "Estimated number of injuries") +
+          theme_grey(15)
+      })
+    }
+```
+
+**Rate vs. Count**
+* So far, we're displaying only a single plot, but we'd like to give the user the choice between visualizing the number of injuries or the population-standardize rate. To do so we add a `selectInput()` to the UI to make that decision.
+```
+fluidRow(
+    column(4,
+        selectInput('code', 'Product', setNames(products$prod_code, products$title))
+        ),
+    column(2, selectInput('y', 'Y axis', c('rate', 'count')))
+    ),
+```
+* The change in the server will look like the following conditional statement:
+```
+output$age_sex <- renderPlot({
+    if (input$y == "count") {
+      summary() %>%
+        ggplot(aes(age, n, colour = sex)) +
+        geom_line() +
+        labs(y = "Estimated number of injuries") +
+        theme_grey(15)
+    } else {
+      summary() %>%
+        ggplot(aes(age, rate, colour = sex)) +
+        geom_line(na.rm = TRUE) +
+        labs(y = "Injuries per 10,000 people") +
+        theme_grey(15)
+    }
+  })
+ ```
+
+**Narrative**
+* Lastly, we want to provide some way to access the narratives.
+* There are two parts to this solution. First we add a new row to the bottom of the UI. We'll use an action button to trigger a new story, and put the narrative in a `textOutput()`
+```
+fluidRow(
+   column(2, actionButton("story", "Tell me a story")),
+   column(10, textOutput("narrative"))
+ )
+```
+* This action button is an integer that increments each time it's clicked, which will trigger a re-execution of the random selection. /
+```
+output$narrative <- renderText({
+    input$story
+    selected() %>% pull(narrative) %>% sample(1)
+  })
+```
+
+#### Chapter 6: Advanced UI
