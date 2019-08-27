@@ -1214,3 +1214,432 @@ output$narrative <- renderText({
 ```
 
 #### Chapter 6: Advanced UI
+**Introduction**
+* The native languages of the web at HTML (for content), CSS (for styling), and JavaScript (for behavior). Shiny is designed to be accessible for R users who aren't familiar with any of those languages.
+* However, you can still take advantage of these languages to customize your apps and extend the Shiny framework.
+
+**HTML 101**
+* HTML is a markup language for describing web pages.
+* A markup language is just a document format that contains plain text content, plus embedded instructions for annotating, or 'marking up', specific sections of that content.
+* These instructions can control the appearance, layout, and behavior of the text they mark up, and also provide structure to the document.
+* A simple snippet of HTML:
+```
+This time I <em>really</em> mean it!
+```
+    - The `<em>` and `</em>` markup instructions indicate that the word `really` should be displayed with specific emphasis (italics).
+    - `<em>` is an example of a *start* tag, and `<em/>` is an example of an *end* tag.
+
+**Inline Formatting Tags**
+* `em` is just one of many HTML tags that are used to format text.
+* Other tags:
+    - `<strong>...</strong>` makes bold text
+    - `<u>...</u>` makes text underlined
+    - `<s>...</s>` makes text strikeout
+    - `<code>...</code>` makes text monospaced
+
+**Block Tags**
+* Another class of tags is used to wrap entire blocks of text.
+* You can use `<p>...</p>` to break text into distinct paragraphs, or `<h3>...</h3>` to turn a line into a subheading.
+* Example:
+    ```
+    <h3>Chapter I. Down the Rabbit-Hole</h3>
+
+    <p>Alice was beginning to get very tired of sitting by her sister on the bank, and of having nothing to do: once or twice she had peeped into the book her sister was reading, but it had no pictures or conversations in it, ‘and what is the use of a book,’ thought Alice ‘without pictures or conversations?’</p>
+
+    <p>So she was considering in her own mind (as well as she could, for the hot day made her feel very sleepy and stupid), whether the pleasure of making a daisy-chain would be worth the trouble of getting up and picking the daisies, when suddenly a White Rabbit with pink eyes ran close by her.</p>
+    ```
+
+**Tags with Attributes**
+* Some tags need to do more than just demarcate some text. An `<a>` (for 'anchor') tag is used to create a hyperlink.
+    - Although it's not enough to just wrap `<a>...</a>` around the link's text, as you also need to specify where the hyperlink points to.
+* Start tags let you include *attributes* that customize the appearance or behavior of the tag. In the case above, we'll add an `href` attribute to our `<a>` start tag:
+    ```
+    <p>Learn more about <strong>Shiny</strong> at <a href='https://shiny.rstudio.com'> this website</a>.</p>
+    ```
+* There are dozens of attributes that all tags accept and hundreds of attributes that are specific to particular tags. However, there are two attributes that are used constantly:
+    1. The `id` attributes uniquely identifies a tag in a document. That is, no two tags in a single document should share the same `id` value, and each tag can have zero or one `id` value. As far as a web browser is concerned, the `id` attribute is completely optional and has no intrinsic effect on the appearance or behavior of the rendered tag. However, it's incredibly useful for identifying a tag for special treatment by CSS or JavaScript, and as such, plays a crucial role for Shiny apps.
+    2. The `class` attribute provides a way of classifying tags in a document. Unlike `id`, any number of tags can have the same class, and each tag can have multiple classes (space separated). Again, classes don't  have an intrinsic effect, but are hugely helpful for using CSS or JavaScript to target groups of tags.
+* Example:
+    ```
+    <p id='storage-low-message' class='message warning'>Storage space is running low!</p>
+    ```
+    - Here, the `id` and `class` values have had no discernible effect. But we could, for example, write CSS that any elements with the `message` class should appear at the top of the page, and that any elements with the `warning` class should have a yellow background and bold text; and we could write JavaScript that automatically dismisses the message if the storage situation improves.
+
+**Parents and Children**
+* In the example above, we have a `<p>` tag that contains some text that contains `<strong>` and `<a>` tags. We can refer to `<p>` as the parent of `<strong>`/`<a>`, and `<strong>`/`<a>` as the children of `<p>`. And naturally, `<strong>` and `<a>` are called siblings.
+* It's often helpful to think of tags and text as forming a tree structure:
+```
+<p>
+├── "Learn more about"
+├── <strong>
+│   └── "Shiny"
+├── "at"
+├── <a href="...">
+│   └── "this website"
+└── "."
+```
+
+**Comments**
+* Just as you can use the `#` character to comment out a line of R code, HTML lets you comment out parts of your web page. Use `<!--` to start a comment and `-->` to end one. Anything between these delimiters will be ignored during the rendering of the web page, although it will still be visible to anyone who looks at your raw HTML by using your browser's View Source command.
+```
+<p>This HTML will be seen.</p>
+
+<!-- <p>This HTML will not.</p> -->
+
+<!--
+<p>
+Nor will this.
+</p>
+-->
+```
+
+**Escaping**
+* Any markup language like HTML, where there are characters that have special meaning, needs to provide a way to “escape” those special characters–that is, to insert a special character into the document without invoking its special meaning.
+* For example, the `<` character in HTML has a special meaning, as it indicates the start of a tag. What if you actually want to insert a `<` character into the rendered document–or, let’s say, an entire `<p>` tag?
+* The escaped version of `<` is `&lt;`, and > is `&gt;`
+    - Example:
+        ```
+        <p>In HTML, you start paragraphs with "&lt;p&gt;" and end them with "&lt;/p&gt;".</p>
+        ```
+* Each escaped character in HTML starts with `&` and ends with `;`.
+* There are lots of valid sequences of characters that go between, but besides `lt` (less than) and `gt` (greater than), the only one you’re likely to need to know is `amp`; `&amp;` is how you insert a & character into HTML.
+* Escaping `<`, `>`, and & is mandatory if you don’t want them interpreted as special characters; other characters can be expressed as escape sequences, but it’s generally not necessary.
+* Escaping `<`, `>`, and & is so common and crucial that every web framework contains a function for doing it (in our case it’s `htmltools::htmlEscape`), but as we’ll see in a moment, Shiny will usually do this for you automatically.
+
+**Generating HTML with Tag Objects**
+* To write HTML in R we will use the `htmltools` package.
+* In htmltools, we create the same trees of parent tags and child tags/text as in raw HTML, but we do so using R function calls instead of angle brackets. For example, this HTML from an earlier example:
+```
+<p id="storage-low-message" class="message warning">Storage space is running low!</p>
+```
+Would look like this in R:
+```
+library(htmltools)
+
+p(id='storage-low-message', class='message warning', 'Storage space is running low!')
+```
+* When included in Shiny UI, it's HTML becomes part of the user interface.
+* What are the main differences:
+    - The `<p>` tag has become `p()` function call, and the end tag is gone. Instead, the end of the `<p>` tag is indicated by the function call's closing parenthesis.
+    - The `id` and `class` attributes have become named arguments to `p()`.
+    - The text contained within `<p>...</p>` has become a string that is passed as an unnamed argument to `p()`.
+
+**Using Function to Create Tags**
+* Only the most common HTML tags have a function directly exposed in the htmltools namespace: `<p>`, `<h1>` through `<h6>`, `<a>`, `<br>`, `<div>`, `<span>`, `<pre>`, `<code>`, `<img>`, `<strong>`, `<em>`, and `<hr>`.
+* When writing these tags, you can simply use the tag name as the function name, e.g. `div()` or `pre()`
+* To write all other tags, prefix the tag name with `tags$`. For example, to create a `<ul>` tag, there’s no dedicated `ul()` function, but you can call `tags$ul()`.
+    - The `tags` object is a named list that `htmltools` provides, and it comes preloaded with almost all of the valid tags in the HTML5 standard.
+* When writing a lot of HTML from R, you may find it tiresome to keep writing `tags$`. If so, you can use the `withTags` function to wrap an R expression, wherein you can omit the `tags$` prefix. In the following code, we call `ul()` and `li()`, whereas these would normally be `tags$ul()` and `tags$li()`.
+```
+withTags(
+  ul(
+    li("Item one"),
+    li("Item two")
+  )
+)
+```
+* Finally, in some relatively obscure cases, you may find that not even tags supports the tag you have in mind; this may be because the tag is newly added to HTML and has not been incorporated into `htmltools` yet, or because it’s a tag that isn’t defined in HTML per se but is still understood by browsers (e.g. the `<circle>` tag from SVG). In these cases, you can fall back to the `tag()` (singular) function and pass it any tag name.
+    - Example:
+    ```
+    tag("circle", list(cx="10", cy="10", r="20", stroke="blue", fill="white"))
+    ```
+    - Notice that the `tag()` function alone needs its attribute and children wrapped in a separate `list()` object.
+
+**Using Named Arguments to Create Attributes**
+* When calling a tag function, any named arguments become HTML attributes.
+```
+a(class="btn btn-primary", `data-toggle`="collapse", href="#collapseExample",
+  "Link with href"
+)
+```
+    * In raw HTML the above would have been:
+    ```
+    ## <a class="btn btn-primary" data-toggle="collapse" href="#collapseExample">Link with href</a>
+    ```
+* The preceding example includes some attributes with hyphens in their names. Be sure to quote such names using backticks, or single or double quotes. Quoting is also permitted, but not required, for simple alphanumeric names.
+* Generally, HTML attribute values should be single-element character vectors, as in the above example. Other simple vector types like integers and logicals will be passed to `as.character()`.
+* Another valid attribute value is `NA`. This means that the attribute should be included, but without an attribute value at all:
+```
+tags$input(type = "checkbox", checked = NA)
+```
+    * In raw HTML the above would have been:
+    ```
+    ## <input type="checkbox" checked/>
+    ```
+* You can also use `NULL` as an attribute value, which means the attribute should be ignored (as if the attribute wasn’t included at all). This is helpful for conditionally including attributes.
+```
+is_checked <- FALSE
+tags$input(type = "checkbox", checked = if (is_checked) NA)
+```
+    * In raw HTML the above would have been:
+    ```
+    ## <input type="checkbox"/>
+    ```
+
+**Using Unnamed Arguments to Create Children**
+* Tag functions interpret unnamed arguments as children. Like regular HTML tags, each tag object can have zero, one, or more children; and each child can be one of several types of objects.
+
+**Tag Objects**
+* Tag objects can contain other tag objects. Trees of tag objects can be nested as deeply as you like.
+    * Example:
+    ```
+    div(
+      p(
+        strong(
+          a(href="https://example.com", "A link")
+        )
+      )
+    )
+    ```
+
+**Plain Text**
+* Tag objects can contain plain text, in the form of single-element character vectors.
+    * Example:
+    ```
+    p("I like turtles.")
+    ```
+* One important characteristic of plain text is that `htmltools` assumes you want to treat all characters as plain text, including characters that have special meaning in HTML like < and >. As such, any special characters will be automatically escaped.
+
+**Verbatim HTML**
+* Sometimes, you may have a string that should be interpreted as HTML; similar to plain text, except that special characters like `<` and `>` should retain their special meaning and be treated as markup. You can tell `htmltools` that these strings should be used verbatim (not escaped) by wrapping them with `HTML()`:
+    * Example:
+    ```
+    html_string <- "I just <em>love</em> writing HTML!"
+    div(HTML(html_string))
+    ```
+
+**Lists**
+* While each call to a tag function can have as many unnamed arguments as you want, you can also pack multiple children into a single argument by using a `list()`. The following two code snippets will generate identical results:
+```
+tags$ul(
+  tags$li("A"),
+  tags$li("B"),
+  tags$li("C")
+)
+
+# OR
+
+tags$ul(
+  list(
+    tags$li("A"),
+    tags$li("B"),
+    tags$li("C")
+  )
+)
+```
+* It can sometimes be handy to use a list when generating tag function calls programmatically. The snippet below uses `lapply` to simplify the previous example.
+```
+tags$ul(
+  lapply(LETTERS[1:3], tags$li)
+)
+```
+
+**NULL**
+* You can use `NULL` as a tag child. `NULL` children are similar to `NULL` attributes; they’re simply ignored, and are only supported to make conditional child items easier to express.
+* In this example, we use `show_beta_warning` to decide whether or not to show a warning; if not, the result of the if clause will be `NULL`.
+```
+show_beta_warning <- FALSE
+
+div(
+  h3("Welcome to my Shiny app!"),
+  if (show_beta_warning) {
+    div(class = "alert alert-warning", role = "alert",
+      "Warning: This app is in beta; some features may not work!"
+    )
+  }
+)
+```
+
+**Mix and Match**
+* Tag functions can be called with any number of unnamed arguments, and different types of children can be used within a single call.
+* Example:
+    ```
+    div(
+      "Text!",
+      strong("Tags!"),
+      HTML("Verbatim <span>HTML!</span>"),
+      NULL,
+      list(
+        "Lists!"
+      )
+    )
+    ```
+
+**Customizing with CSS**
+* We'll now switch to Cascading Style Sheets (CSS), the language that specifies the visual style and layout of the page.
+
+**Introduction to CSS**
+* CSS lets us specify directive that control how the HTML tree of tags and text is rendered; each directive is called a *rule.*
+* Here’s some example CSS that includes two rules: one that causes all `<h3>` tags (level 3 headings) to turn red and italic, and one that hides all `<div class="alert">` tags in the `<footer>`.
+```
+h3 {
+  color: red;
+  font-style: italic;
+}
+
+footer div.alert {
+  display: none;
+}
+```
+* The part of the rule that precedes the opening curly brace is the selector; in this case, `h3`. The selector indicates which tags this rule applies to.
+* The parts of the rule inside the curly braces are properties. This particular rule has two properties, each of which is terminated by a semicolon.
+
+**CSS Selectors**
+* You can select tags that match a specific `id` or `class`, select tags based on their parents, select tags based on whether they have sibling tags.
+    - You can combine such criteria together using 'and', 'or', and 'not' semantics.
+* Here are some extremely common selector patters:
+    - `.foo` - All tags whose class attributes include `foo`
+    - `div.foo` - All `<div>` tags whose `class` attributes include `foo`
+    - `#bar` - The tag whose `id` is `bar`
+    - `div#content p:not(#intro)` - All `<p>` tags inside the `<div>` whose `id` is `content`, except the `<p>` tag whose `id` is `intro`
+
+**CSS Properties**
+* The syntax of CSS properties is very simple and intuitive. The challenge is the shear number of them.
+    - There are dozens upon dozens of properties that control typography, margin and padding, word wrapping and hyphenation, sizing and positioning, borders and shadows, scrolling and overflow, animation and 3D transforms.
+* Here are some examples of common properties:
+    - `font-family: Open Sans, Helvetica, sans-serif;` Display text using the Open Sans typeface, if it’s available; if not, fall back first to Helvetica, and then to the browser’s default sans serif font.
+    - `font-size: 14pt;` set the font size to 14 point.
+    - `width: 100%; height: 400px;` Set the width to 100% of the tag’s container, and the height to a fixed 400 pixels.
+    - `max-width: 800px;` Don’t let the tag grow beyond 800 pixels wide.
+* Most of the effort in mastering CSS is in knowing what properties are available to you, and understanding when and how to use them.
+
+**Including Custom CSS in Shiny**
+* Shiny gives you several options for adding custom CSS into your apps. Which method you choose will depend on the amount and complexity of your CSS.
+* If you have one or two very simple rules, the easiest way to add CSS is by inserting a `<style>` tag, using `tags$style()`. This can go almost anywhere in your UI.
+    * Example:
+    ```
+    library(shiny)
+
+    ui <- fluidPage(
+      tags$style(HTML("
+        body, pre { font-size: 18pt; }
+      "))
+    )
+    ```
+
+**Standalone CSS file with `includeCSS`**
+* The second method is to write a standalone `.css` file, and use the `includeCSS` function to add it to your UI.
+    * Example:
+    ```
+    ui <- fluidPage(
+      includeCSS("custom.css"),
+      ... # the rest of your UI
+    )
+    ```
+* The `includeCSS` call will return a `<style>` tag, whose body is the content of `custom.css`.
+
+**Standalone CSS file with `<link>` Tag**
+* You can also choose to serve up the `.css` file at a separate URL, and link to it from your UI.
+To do this, create a `www` subdirectory in your application directory (the same directory that contains `app.R`) and put your CSS file there—for example, `www/custom.css`. Then add the following line to your UI:
+    ```
+    tags$head(tags$link(rel="stylesheet", type="text/css", href="custom.css"))
+    ```
+    - Note that the `href` attribute should not include `www`; Shiny makes the contents of the `www` directory available at the root URL path.
+
+#### Chapter 7: Why Reactivity?
+**Why Reactive Programming?**
+* Reactive programming is a style of programming that emphasizes values that change over time, and calculating and actions that depend on those values.
+* For Shiny apps to be useful, we need two things:
+    1. Expressions and outputs should update whenever one of there input values changes. This ensures that input and output stay in sync.
+    2. Expressions and outputs should update only when one of their inputs changes. This ensures that apps respond quickly to user input, doing the minimal amount.
+* It's relatively easy to satisfy one of the two conditions, but much harder to satisfy both.
+
+**Reactive Programming**
+* To enable reactivity in the console we use a special Shiny mode `consoleReactive(TRUE)` to exemplify reactivity in action.
+* This mode isn’t enabled by default because it makes a certain class of bug harder to spot in an app, and it’s primary benefit is to help you understand reactivity.
+```
+library(shiny)
+consoleReactive(TRUE)
+```
+* To create a variable that is reactive we will use:
+```
+temp_c <- reactiveVal(10)
+```
+    - This creates a single reactive value that has a special syntax for getting and setting its value. To get the value you call it like a function; to set the value, you call it with a value:
+    ```
+    temp_c(20) # set
+    temp_c() # get
+    ```
+* Now we can create a reactive expression that depends on this value:
+```
+temp_f <- reactive({
+    message('Converting')
+    (temp_c() + 32) * 9 / 5
+    })
+
+temp_f()
+```
+    - Then if `temp_c()` changes, `temp_f()` will also be up to date.
+    ```
+    temp_c(-3)
+    temp_f()
+    ```
+* Note that the conversion only happens if we request the value of `temp_f()` (unlike the event-driven approach), and the computation happens only once (unlike the functional approach). A reactive expression caches the result of the last call, and will only recompute if one of the inputs changes.
+* Together these properties ensure that Shiny does as little work as possible, making your app as efficient as possible.
+
+**A Brief History of Reactive Programming**
+* Spreadsheets are closely related to reactive programming: you declare the relationship between cells (using formulas), and when one cell changes, all of its dependencies automatically update.
+* Now reactive programming has come to dominate UI programming on the web, with hugely popular frameworks like React, Vue.js, and Angular which are either inherently reactive or designed to work hand-in-hand with reactive backends.
+
+#### Chapter 9: Dependency Tracking
+**How Dependency Tracking Works**
+* The most striking aspect of reactive programming in Shiny is that a reactive expression, observer, or output “knows” which reactive values/inputs and reactive expressions it depends on.
+    - Example:
+    ```
+    ouput$plot <- renderPlot({
+        plot(head(cars, input$rows))
+        })
+    ```
+* This is because Shiny uses dynamic instrumentation, where as the code is run it collects additional information about what's going on.
+
+**Reactive Context**
+* In the example above, before the plot output begins executing, it creates an object that's internal to Shiny called a reactive context.
+* You will never actually see reactive contexts.
+* The reactive context doesn’t represent the plot output as a whole, but just a single execution of the output.
+* If, over the life of a Shiny session, the plot is (re)rendered a dozen times, then a dozen reactive contexts will have been created.
+* The Shiny package has a top-level variable (like a global variable, but one only visible to code inside the Shiny package) that is always pointing to the “current” or “active” reactive context.
+* The plot output assigns its new context to this variable, then executes its code block, then restores the previous value of the variable.
+    * Example (not real code just an illustration of how this works):
+    ```
+    # Create the new context
+    ctx <- ReactiveContext$new()
+
+    # Set as the current context (but save the prev context)
+    prev_ctx <- shiny:::currentContext
+    shiny:::currentContext <- ctx
+
+    # Actually run user code here
+    renderPlot({ ... })
+
+    # Restore the prev context
+    shiny:::currentContext <- prev_ctx
+    ```
+* The purpose of the context object is to provide a rendezvous point between the reactive consumer that is executing, and the reactive producers that it’s reading from
+* There are two important methods on context objects:
+    1. `invalidate()`: Informs the context that a producter that it read from is now potentially out of date (invalidated); and so whatever reactive consumer owns the context should also be considered out of date.
+    2. `onInvalidated(func)`: Asks the context to invoke the given callback function in the future, if and when `invalidate()` is called.
+
+**Conditional Dependency**    
+* Example App:
+```
+library(shiny)
+
+ui <- fluidPage(
+  selectInput("choice", "A or B?", c("a", "b")),
+  numericInput("a", "a", 0),
+  numericInput("b", "b", 10),
+  textOutput("out")
+)
+
+server <- function(input, output, session) {
+  output$out <- renderText({
+    if (input$choice == "a") {
+      input$a
+    } else {
+      input$b
+    }
+  })
+}
+```
+
+#### Chapter 11: Reactive Components
