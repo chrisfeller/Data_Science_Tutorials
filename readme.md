@@ -43,4 +43,6 @@ Collection of notes from various data science tutorials and textbooks. Original 
 
 * [R Shiny Apps](https://shiny.rstudio.com/tutorial/)
 
+* [Mastering Shiny](https://mastering-shiny.org/introduction.html)
+
 * [Neural Networks](https://deeplearning4j.org/neuralnet-overview)

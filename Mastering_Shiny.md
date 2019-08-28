@@ -1643,3 +1643,46 @@ server <- function(input, output, session) {
 ```
 
 #### Chapter 11: Reactive Components
+**Building Blocks**
+* There are three objects almost all reactive programming related functions in Shiny are built on.
+    - They are called reactive primitives because they are a fundamental part of the reactive framework and can not be implemented from simpler components.
+    1. Reactive values (used to implement reactive inputs)
+    2. Expressions
+    3. Observers (used to implement reactive outputs)
+
+**Reactive Values**
+* `inputs` are a read-only example of a reactive value that Shiny uses to communicate user actions in the browser to your R code.
+* A reactive value is a special type of function that returns its current value when called without arguments, and updates its value when called with a single argument.
+* The big difference between reactive values and ordinary R values is that reactive values track who accesses them. And then when the value changes, it automatically lets everyone know that there's been a change.
+* A regular variable asks "What's that value of `x`?", while a reactive value asks "What's the value of `input$x`? And please notify me the next time `input$x` changes!"
+* There are two fundamental types of reactive consumers in Shiny.
+    1. Actions (with side effects)
+        - Change teh world in some way: e.g. `print()`, `plot()`, `write.csv()`
+    2. Calculations (no side effects)
+        - return a value: e.g. `sum()`, `mean()`, or `read.csv()`
+* Almost all R functions are either calculations or actions.
+* In programming terminology, changing the world is called a side-effect and by this we mean any effects apart from a function's return value.
+    - Changing a file on a desk is a side effect.
+    - Printing words to the console is a side effect.
+    - Sending a message to another computer is a side effect.
+
+**Observers: Automatic Actions**
+* Observers are reactive consumers that take a code block that performs an action of some kind.
+* Observers are reactive consumers because they know how to respond to one of their dependencies changes: they re-run their code block.
+* This observer does two things. It prints out a message giving the current value of `x`, and it subscribes to be notified of the next change to `x()`. When `x` changes, and this observer is notified, it requests that the Shiny runtime run its code block again, and two steps repeat.
+
+
+**Reactive Expressions: Smart Calculations**
+* Reactive expressions are the other fundamental type of reactive consumer.
+* While observers model actions that have side effects, reactive expressions model calculations that return values.
+* Creating a reactive expression is like declaring an R function: nothing actually happens until you call it.
+* Reactive expressions are reactive: they know when the reactive values they’ve read have changed, and they alert their readers when their own value may have changed. They’re also lazy: they contain code, but that code doesn’t execute unless/until someone tries to actually retrieve the value of the reactive expression (by calling it like a function).
+* Most importantly, reactive expressions cache their most recent value.
+* These particular properties – laziness, caching, reactivity, and lack of side effects – combine to give us an elegant and versatile building block for reactive programming.
+
+**Outputs**
+* Outputs are reactive consumers.
+* Output code is allowed to read reactive values like `input$x` and then know when those reactive dependencies change.
+* Whereas observers execute eagerly and reactive expressions execute lazily, outputs are somewhere in between.
+* When an output’s corresponding UI element is visible in the browser, outputs execute eagerly; that is, once at startup, and once anytime their relevant inputs or reactive expressions change.
+    * However, if their UI element becomes hidden (e.g. it is located on a `tabPanel` that is not active, or `removeUI` is called to actively remove it from the page) then Shiny will automatically suspend (pause) that output from reactively executing.
