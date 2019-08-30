@@ -844,7 +844,7 @@ ui <- fluidPage(
 )
 ```
 
-#### Lesson 3: Lesson 3
+#### Lesson 3: Add Control Widgets
 **Add Control Widgets**
 * A widget is a web element that users can interact with.
 * Widgets provide a way for your users to send messages to the Shiny app.
@@ -943,7 +943,7 @@ ui <- fluidPage(
                        choices = list("Choice 1" = 1, "Choice 2" = 2,
                                       "Choice 3" = 3), selected = 1)),
 
-    column(3, 
+    column(3,
            sliderInput("slider1", h3("Sliders"),
                        min = 0, max = 100, value = 50),
            sliderInput("slider2", "",
@@ -965,3 +965,88 @@ server <- function(input, output) {
 # Run the app ----
 shinyApp(ui = ui, server = server)
 ```
+
+#### Lesson 4: Display Reactive Output
+**Display Reactive Output**
+* To add live functionality to your input widgets we will now cover reactive outputs.
+* Reactive outputs automatically respond when your user toggles a widget.
+
+**Two Steps**
+* You can create reactive outputs with a two-step process:
+    1. Add an R object to your user interface.
+    2. Tell Shiny how to build the object in the server function. The object will be reactive if the code that builds it calls a widget value.
+
+* Step 1: Add an R object to the UI
+    - Shiny provides a family of functions that turn R objects into output for your user interface.
+    - Each function creates a specific type of output.
+    - Types of functions:
+        - `dataTableOutput`: Creates a datatable
+        - `htmlOutput`: Creates raw HTML
+        - `imageOutput`: Create an image
+        - `plotOutput`: Creates a plot
+        - `tableOutput`: Creates a table
+        - `textOutput`: Creates text
+        - `uiOutput`: Creates raw HTML
+        - `verbatimTextOutput`: Creates text
+    - You can add output to the user interface in the same way that you added HTML elements and widgets.
+        - Place the output function inside `sidebarPane` or `mainPanel` in the `ui`.
+    - For example, the `ui` object below uses `textOutput` to add a reactive lien of text to the main panel of the Shiny app.
+    ```
+    ui <- fluidPage(
+        titlePanel('censusVis'),
+
+        sidebarLayout(
+            sidebarPanel(
+                helpText('Create demographic maps with
+                          information from the 2010 US Census'),
+
+                selectInput('var',
+                            label = 'Choose a variable to display',
+                            choices = c('Percent White',
+                                        'Percent Black',
+                                        'Percent Hispanic',
+                                        'Percent Asian'),
+                            selected = 'Percent White'),
+
+                sliderInput('range',
+                            label = 'Range of interest:',
+                            min = 0, max = 100, value = c(0, 100))
+                ),
+
+        mainPanel(
+            textOutput('selected_var')
+            )
+        )
+    )
+    ```
+        - Note that `textOutput` takes an argument, the character string `'selected_var'`.
+        - Each of the `*Output` functions require a single argument: a character string that Shiny will use as the name of your reactive element. Your user will not see this name, but you will use it later.
+* Step 2: Provide R code to build the object
+    - Placing a function in `ui` tells Shiny where to display your object. Next, you need to tell Shiny how to build the object, which we do by providing the R code that builds the object in the `server` function.
+    - The `server` function plays a special role in the Shiny process; it builds a list-like object named `output` that contains all of the code needed to update the R objects in your app.
+        - Each R object needs to have its own entry in the list.
+        - You can create an entry by defining a new element for `output` within the `server` function. The element name should match the name of the reactive element that you created in the `ui`.
+    - Example:
+    ```
+    server <- function(input, output) {
+        output$selected_var <- renderText({
+            'You have selected this'
+            })
+    }
+    ```
+        - Notice that `output$selected_var` matches `textOutput('selected_var')` in the `ui`.
+    - You do not need to explicitly state in the `server` function to return `output` in its last line of code. R will automatically update `output` through reference class semantics.
+    - Each entry to `output` should contain the output of one of Shiny's `render*` function that corresponds to the type of reactive object you are making.
+    - Types of Render functions:
+        - `renderDataTable`: Creates a Data table
+        - `renderImage`: Creates images (saved as a link to the source file)
+        - `renderPlot`: Creates plots
+        - `renderPrint`: Creates any printed output
+        - `renderTable`: Creates data frame, matrix, other table-like structures.
+        - `renderText`: Creates a character strings
+        - `renderUI`: Creates a Shiny tab object or HTML
+    - Each `render*` function takes a single argument: an R expression surrounded by braces `{}`. The expression can be one simple line of text, or it can involve many lines of code, as if it were a complicated function call.
+    - Think of R expressions as a set of instructions that you give Shiny to store for later. Shiny will run the instructions when you first launch your app, and then Shiny will re-run the instructions every time it needs to update the object.
+        - For this to work, your expression should return the object you have in mind (a piece of text, a plot, a data frame, etc.) You will get an error if the expression does not return an object, or if it returns the wrong type of object.
+
+#### Lesson 5: Use R Scripts and Data
