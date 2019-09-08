@@ -1050,3 +1050,261 @@ shinyApp(ui = ui, server = server)
         - For this to work, your expression should return the object you have in mind (a piece of text, a plot, a data frame, etc.) You will get an error if the expression does not return an object, or if it returns the wrong type of object.
 
 #### Lesson 5: Use R Scripts and Data
+**Introduction**
+* This lesson will show you how to load data, R Scripts, and packages to use in your Shiny Apps, while building a sophisticated app visualizing US Census data
+
+**Data**
+* Data will come from the `UScensus2010` package.
+* The `counties.rds` dataset contains:
+    - the name of each country in the United States
+    - the total population of the county
+    - the percent of residents in the county who are White, Black, Hispanic, or Asian
+* To load data:
+```
+counties <- readRDS('data/counties.rds')
+head(counties)
+```
+
+**Helper Functions**
+* `helpers.R` is an R script that can help you make choropleth maps.
+    - A choropleth map is a map that uses color to display the regional variation of a variable.
+    - In our case, `helpers.R` will create `percent_map`, a function designed to map the data in `counties.rds`.
+* `helpers.R` uses the `maps` and `mapproj` packages in R, which can be downloaded via:
+```
+install.packages(c('maps', 'mapproj'))
+```
+* The `percent_map` function in `helpers.R` takes five arguments:
+    1. `var`: a column vector from the `counties.rds` dataset
+    2. `color`: any character string you see in the output of `colors()`
+    3. `legend.title`: a character string to use as the title of the plot's legend
+    4. `max`: a parameter for controlling shade range (defaults to 100)
+    5. `min`: a parameter for controlling shade range (defaults to 0)
+* Example:
+```
+library(maps)
+library(mapproj)
+source('helpers.R')
+
+counties <- readRDS('data/counties.rds')
+percent_map(counties$white, 'darkgreen', '% White')
+```
+
+**Execution**
+* Shiny will execute all of these commands in you place them in your `app.R` script.
+    - Where you place those commands will determine the performance of your app.
+* The `shinyApp` function is run once, when you launch your app.
+    - Source scripts, load libraries, and read data sets should be at the beginning of an `app.R` script *outide* of the `server` function.
+        - Shiny will only run this code once, which is all you need.
+* The `server` function is run once each time a user visits your app.
+    - Define user specific objects inside `server` function, but outside of any `render*` calls.
+        - These would be objects that you think each user will need their own personal copy of.
+        - For example, an object that records the user's session information.
+        - This code will be run once per user.
+* The R expression inside `render*` functions are run many times. Shiny runs them once each time a user changes the value of a widget.
+    - Only place code that Shiny *must* rerun to build an object inside of a `render*` function.
+    - Shiny will rerun *all* of the code in a `render*` chunk each time a user changes a widget mentioned in the chunk, which can be quite often.
+    - You should generally avoid placing code inside a `render` function that does not need to be there. Doing so will slow down the entire app.
+
+**The `ui`**
+```
+ui <- fluidPage(
+    titlePanel('censusVis'),
+
+    sidebarLayout(
+        sidebarPanel(
+            helpText('Create demographic maps with
+                information from the 2010 US Census.'),
+
+            selectInput('var',
+                        label = 'Choose a variable to display',
+                        choices = c('Percent White',
+                                    'Percent Black',
+                                    'Percent Hispanic',
+                                    'Percent Asian'),
+                        selected = 'Percent White'),
+
+            sliderInput('range',
+                        label = 'Range of interest:',
+                        min = 0,
+                        max = 100,
+                        value = c(0, 100))
+            ),
+
+        mainPanel(plotOutput('map'))
+        )
+    )
+```
+
+**The `server`**
+```
+server <- function(input, output){
+    output$map <- renderPlot({
+        data <- switch(input$var,
+                'Percent White' = counties$white,
+                'Percent Black' = counties$black,
+                'Percent Hispanic' = counties$hispanic,
+                'Percent Asian' = counties$asian)
+
+        color <- switch(input$var,
+                    "Percent White" = "darkgreen",
+                    "Percent Black" = "black",
+                    "Percent Hispanic" = "darkorange",
+                    "Percent Asian" = "darkviolet")  
+
+        legend <- switch(input$var,
+                             "Percent White" = "% White",
+                             "Percent Black" = "% Black",
+                             "Percent Hispanic" = "% Hispanic",
+                             "Percent Asian" = "% Asian")                          
+
+         percent_map(data,
+                    color,
+                    legend,
+                    input$range[1],
+                    input$range[2])
+})
+}
+```
+* `switch` is a useful companion to multiple choice Shiny widgets.
+    - Use `switch` to change the values of a widget into R expressions.
+
+#### Lesson 6: Use Reactive Expressions
+**Introduction**
+* This lesson will show you how to streamline your Shiny apps with reactive expressions.
+* Reactive expressions let you control which parts of your app update when, which prevents unnecessary computation that can slow down  your app.
+
+**Reactive Expressions**
+* A reactive expression saves its result the first time you run it.
+* The next time the reactive expression is called, it checks if the saved value has become out of date (i.e., whether the widgets it depends on have changed).
+* If the value is out of date, the reactive object will recalculate it (and then save the new result).
+* If the value is up-to-date, the reactive expression will return the saved value without doing any computation.
+* You can use this behavior to precent Shiny from re-running code unnecessarily.
+* Example:
+```
+# Load packages ----
+library(shiny)
+library(quantmod)
+
+# Source helpers ----
+source("helpers.R")
+
+# User interface ----
+ui <- fluidPage(
+  titlePanel("stockVis"),
+
+  sidebarLayout(
+    sidebarPanel(
+      helpText("Select a stock to examine.
+
+        Information will be collected from Yahoo finance."),
+      textInput("symb", "Symbol", "SPY"),
+
+      dateRangeInput("dates",
+                     "Date range",
+                     start = "2013-01-01",
+                     end = as.character(Sys.Date())),
+
+      br(),
+      br(),
+
+      checkboxInput("log", "Plot y axis on log scale",
+                    value = FALSE),
+
+      checkboxInput("adjust",
+                    "Adjust prices for inflation", value = FALSE)
+    ),
+
+    mainPanel(plotOutput("plot"))
+  )
+)
+
+# Server logic
+server <- function(input, output) {
+
+  dataInput <- reactive({  
+    getSymbols(input$symb, src = "yahoo",
+               from = input$dates[1],
+               to = input$dates[2],
+               auto.assign = FALSE)
+  })
+
+  finalInput <- reactive({
+    if (!input$adjust) return(dataInput())
+    adjust(dataInput())
+  })
+
+  output$plot <- renderPlot({
+    chartSeries(finalInput(), theme = chartTheme("white"),
+                type = "line", log.scale = input$log, TA = NULL)
+  })
+}
+
+# Run the app
+shinyApp(ui, server)
+```
+
+#### Lesson 7: Share Your Apps
+**Introduction**
+* When it comes to sharing Shiny apps, you have two basic options:
+1. Share your Shiny app as R scripts
+    - This is the simplest way to share an app, but it works only if your users have R on their computer (and know how to use it).
+    - Users can use these scripts to launch the app from their own R session, just like you've been launching the apps so far in this tutorial.
+2. Share your Shiny app as a web page
+    - This is the most user friendly way to share a Shiny app.
+    - Your user can navigate to your app through the internet with a web browser. They will find your app fully rendered, up to date, and ready to go.
+
+**Share as R Scripts**
+* To run a Shiny app you'll need the `app.R` file and all supplemental documents such as `www` folder in one directory.
+* Example:
+```
+library(shiny)
+runApp('app_folder')
+```
+
+**runUrl**
+* Shiny also has three build in commands that make it easy to use files that are hosted online. The first is `runUrl`
+* `runUrl` will download and launch a Shiny app straight from a weblink.
+* To use `runUrl`:
+    1. Save your Shiny app's directory as a zip file
+    2. Host that zip file at it's own link on a web page.
+        - Anyone with access to the link can launch the app from inside R by running:
+        ```
+        library(shiny)
+        runUrl(link)
+        ```
+
+**runGitHub**
+* The second option is `runGitHub`, which is useful if you don't have your own web page to host the files.
+* To share an app through GiHub:
+    1. Create a repository on GitHub
+    2. Upload your `app.R` script and all supplemental documents
+    3. Then your user can run your app via:
+    ```
+    runGitHub(<your repository name>, <your user name>)
+    ```
+
+**runGist**
+* If you want an anonymous way to post files online, GitHub offers a pasteboard service for sharing files at gist.github.com.
+* You don’t need to sign up for a GitHub account to use this service.
+* Even if you have a GitHub account, gist can be a simple, quick way to share Shiny projects.
+* To share your app as a gist:
+    1. Copy and paste your `app.R` files to the gist web page
+    2. Note the URL that GitHub gives your gist.
+    3. Once you've made a gist, your users can launch the app with:
+    ```
+    runGist(<gist number>)
+    ```
+
+**Share as a Web Page**
+* All of the above methods share the same limitation. They require your user to have R and Shiny installed on their computer.
+* RStudio offers three ways to host your Shiny app as a web page:
+        1. shinyapps.io
+            - Easiest option.
+            - Upload your app straight from an R session to a server hosted by RStudio
+        2. Shiny Server
+            - Shiny Server is a companion program to Shiny that builds a web server designed to host Shiny apps. It’s free, open source, and available from GitHub.
+            - Shiny Server is a server program that Linux servers can run to host a Shiny app as a web page.
+            - To use Shiny Server, you’ll need a Linux server that has explicit support for Ubuntu 12.04 or greater (64 bit) and CentOS/RHEL 5 (64 bit).
+        3. RStudio Connect
+            - A publishing platform for the work your team creates in R.
+            - Useful if you need password authentication, SSL support, admin tools, and priority support.
