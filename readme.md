@@ -5,6 +5,8 @@ Collection of notes from various data science tutorials and textbooks. Original 
 
 * [Data School Pandas Tutorial](https://www.youtube.com/watch?v=yzIMircGU5I&list=PL5-da3qGB5ICCsgW1MxlZ0Hq8LL5U3u9y&index=1)
 
+* [Data School 100 Pandas Tricks](https://www.dataschool.io/python-pandas-tips-and-tricks/)
+
 * [Data School Pandas Tricks](https://www.youtube.com/watch?v=RlIiVeig3hc)
 
 * [Pandas Cookbook](https://github.com/jvns/pandas-cookbook)
