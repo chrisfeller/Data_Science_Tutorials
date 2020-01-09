@@ -383,3 +383,94 @@
 2. Read it into a DataFrame
 3. Convert it to a dict
 4. Use dict to specify dtypes of dataset
+
+**51) Convert a column from continuous to categorical**
+1. Use `cut()` to specify bin edges:
+    `pd.cut(titan.Age, bins=[0, 18, 25, 99])`
+2. Use `qcut()` to specify number of bins (creates bins of approx. equal size)
+    `pd.qcut(titanic.Age, q=3)`
+* Each allow you to label bins:
+    `pd.cut(titanic.Age, bins=[0, 18, 25, 99], labels=['child', 'young_adult', 'adult', 'elderly'])`
+
+**52) Dummy Encode (One-Hot Encode) a DataFrame**
+* Use `pd.get_dummies(df)` to encode all object and category columns.
+* To drop the first level since it provides redundant information, set `drop_first=True`
+* Example:
+    `pd.get_dummies(df, drop_first=True)`
+
+**53) Convert one set of values to another**
+1. `map()` using a dictionary:
+    `df['gender_letter'] = df.gender.map({'male': 'M', 'female': 'F'})`
+2. `factorize()` to encode each value as an integer:
+    `df['color_num'] = df.color.factorize()[0]`
+3. comparison statement to return boolean values
+    `df['can_vote'] = df.age >= 18`
+
+**54) Apply the same mapping to multiple columns at one**
+* Use `applymap()`, which is a DataFrame method, with `get`, a dictionary method.
+    ```
+    mapping = {'male': 0, 'female': 1}
+    cols = ['B', 'C']
+    df[cols] = df[cols].applymap(mapping.get)
+    ```
+
+**55) Expand a Series of lists into a DataFrame**
+* When your data is 'trapped' in a Series of lists:
+    ```
+    import pandas as pd
+    df = pd.DataFrame({'col_one': [1, 2, 3], 'col_two': [[10, 40], [20, 50], [30, 60]]})
+    ```
+* Expand the Series in a DataFrame by using `apply()` and passing it to the Series constructor:
+    `df.col_two.apply(pd.Series)`
+
+**56) Use Explode**
+* When you have a Series containing a list of items you can create one row for each item using the `explode()` method.
+    ```
+    import pandas as pd
+    df = pd.DataFrame({'sandwich': ['PB&J', 'BLT', 'cheese'],
+                       'ingredients': [['peanut butter', 'jelly'],
+                                       ['bacon', 'lettuce', 'tomato'],
+                                       ['swiss cheese']]},
+                        index=['a', 'b', 'c'])
+
+    df.explode('ingredients')
+    ```
+
+**57) Deal with Series containing comma-separated items**
+* When you have a Series containing comma-separated items  you can create one row for each item via:
+1. `str.split()` creates a list of strings:
+2. `assign()` overwrites the existing column
+3. `explode()` creates the rows
+    ```
+    import pandas as pd
+    df = pd.DataFrame({'sandwich': ['PB&J', 'BLT', 'cheese'],
+                       'ingredients': [['peanut butter', 'jelly'],
+                                       ['bacon', 'lettuce', 'tomato'],
+                                       ['swiss cheese']]},
+                        index=['a', 'b', 'c'])
+
+    df.assign(ingredients = df.ingredients.str.split(',')).explode('ingredients')
+    ```
+
+**58) Reverse Explode**
+* Reverse `explode()` with `groupby()` and `agg()`:
+    ```
+    df['imploded'] = df_exploded.groupby(df_exploded.index).ingredients.agg(list)
+    ```
+
+**59) Create a single datetime columns from multiple columns**
+* You must include: month, day, year
+* You can also include: hour, minute, second
+* Make a single datetime with `to_datetime()`
+    `df['date'] = pd.to_datetime(df[['month', 'day', 'year']])`
+
+**60) Convert 'year' and 'day of year' into a single datetime column**
+1. Combine them into one number
+2. Convert to datetime and specify its format
+    ```
+    # step 1
+    df['combined'] = df['year'] * 1000 + df['day_of_year']
+
+    # step 2
+    df['date'] = pd.to_datetime(df['combined'], format('%Y%j'))
+    ```
