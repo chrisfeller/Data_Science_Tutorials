@@ -474,3 +474,208 @@
     # step 2
     df['date'] = pd.to_datetime(df['combined'], format('%Y%j'))
     ```
+
+**61) Access date attributes via datetime**
+* To access helpful datetime attributes of a date use:
+    `df.columns.dt.year`
+* Can access:
+    - `year`
+    - `month`
+    - `day`
+    - `hour`
+    - `minute`
+    - `second`
+    - `timetz` (timezone)
+    - `dayofyear`
+    - `weekofyear`
+    - `week`
+    - `dayofweek`
+    - `weekday`
+    - `weekday_name`
+    - `quarter`
+    - `days_in_month`
+    - etc...
+
+**62) Perform an aggregation with a given frequency (monthly, yearly, etc.)**
+* To perform an aggregation (sum, mean, etc.) with a given frequency (monthly, yearly, etc.) use `resample()`.
+* It's like a groupby for time series.
+* Example:
+    ```
+    # for each year, show the sum of 'sales'
+    df.resample('Y').sales.sum()
+    ```
+
+**63) Aggregate time series by weekend day**
+* Problem: You have time series data that you want to aggregate by day, but you're only interested in weekend.
+* Solution:
+    1. resample by day ('D')
+    2. filter by day of week (5=Saturday, 6=Sunday)
+* Example:
+    ```
+    daily_sales = df.resample('D').hourly_sales.sum()
+    weekend_sles = daily_sales[daily_sales.index.dayofweek.isin([5, 6])]
+    ```
+
+**64) Calculate the difference between each row and the previous row**
+* Use `df.col_name.diff()`
+* Instead to calculate the percent change use `df.col_name.pct_change()`
+* Example:
+    ```
+    # Calculate change from previous day
+    df['Change'] = df.Close.diff()
+    df['Percent_Change'] = df.Close.pct_change()*100
+    ```
+
+**65) Convert a datetime Series from UTC to another time zone**
+1. Set current time zone via `tz_location('UTC')`
+2. Convert `tz_convert('America/Chicago')`
+* Example:
+    ```
+    s = s.dt.tz_localize('UTC')
+    s.dt.tz_convert('America/Chicago')
+    ```
+
+**66) Calculate % of missing values in each column**
+* To calculate the percent of missing values in each column:
+    `df.isna().mean()`
+* To drop columns with any missing values:
+    `df.dropna(axis='columns')`
+* To drop columns in which more than 10% of values are missing:
+    `df.dropna(thresh=len(df)*0.9, axis='columns')`
+
+**67) Fill missing values in time series data**
+* To fill missing values in a time series:
+    `df.interpolate()`
+    - Defaults to linear interpolation, but other methods are supported.
+
+**68) Store missing values ('NaN') in an integer Series**
+* Use `Int64`
+* The default data type for integers is `int64` but `int64` doesn't support missing values. As a solution use `Int64`, which supports missing values.
+* Example:
+    `pd.Series([10, 20, np.nan], dtype='Int64)`
+
+**69) Aggregate by multiple functions**
+* Instead of aggregating by a single function (such as 'mean'), you can aggregate by multiple functions by using `agg` (and passing it a list of functions) or by using `describe()` (for summary statistics).
+* Example:
+    ```
+    # aggregate by a single function
+    df.groupby('continent'.beer_servings.mean())
+
+    # aggregate by multiple functions
+    df.groupby('continent').beer_servings.agg(['mean', 'count'])
+    ```
+
+**70) Extract the last value in each group**
+* `last()` is an aggregation function just like `sum()` and `mean()`, which means it can be used with groupby to extract the last value in each group.
+* Example:
+    ```
+    # when was each patient's last visit?
+    df.groupby('patient').visit.last()
+    ```
+* You can also use `first()` and `nth()`
+
+**71) Name the output columns of multiple aggregations**
+* Named aggregation allows you to name the output columns and avoids a column MultiIndex
+* Example:
+    ```
+    # leads to uninformative and MultiIndex columns
+    titanic.groupby('Pclass').Age.agg(['mean', 'max'])
+
+    # solution
+    titanic.groupby('Pclass').Age.agg(mean_age='mean', max_age='max')
+    ```
+
+**72) Combine the output of an aggregation with original DataFrame**
+* Instead of `df.groupby('col').col2.func()` use `df.groupby('col1').col2.transform(func)`
+
+**73) Calculate a running total of a Series**
+* Use `cumsum()`
+* Example:
+    ```
+    df['running_total'] = df.sales.cumsum()
+    ```
+
+**74) Calculate running count within groups**
+* Use: `df.groupby('col').cumcount() + 1`
+* Example:
+    ```
+    df['count_by_person'] = df.groupby('salesperson').cumcount() + 1
+    ```
+
+**75) Randomly sample rows from a DdataFrame**
+* To get a random number of rows: `df.sample(n=10)`
+* To get a random proportion of rows: `df.sample(frac=0.25)`
+* Useful parameters:
+    - `random_state`: use any integer for reproducibility
+    - `replace`: sample with replacement
+    - `weights`: weight based on values in a column
+
+**76) Shuffle your DataFrame rows**
+* Use `df.sample(frac=1, random_state=0)`
+* To reset the index after shuffling:
+    `df.sample(frac=1, random_state=0).reset_index(drop=True)`
+
+**77) Split a DataFrame into two random subsets**
+* To split a DataFrame into two random subsets:
+    ```
+    df1 = df.sample(frac=0.75, random_state=42)
+    df2 = df.drop(df_1.index)
+    ```
+* Only works if df's index values are unique
+
+**78) Identify the source of each row in DataFrame merge**
+* To identify the source of each row (left, right, both) in a DataFrame merge use the setting `indicator=True`
+* Example:
+    ```
+    pd.merge(df1, df2, how='left', indicator=True)
+    ```
+
+**79) Check that merge keys are unique in two DataFrames**
+* To check that merge keys are unique in BOTH datasets use `pd.merge(left, right, validate='one_to_one')`
+* Use `one_to_many` to only check uniqueness in LEFT
+* Use `many_to_one` to only check uniqueness in RIGHT
+
+**80) Style a DataFrame**
+1. `df.style.hide_index()`
+2. `df.style.set_caption('My caption')`
+
+**81) Add formatting to your DataFrame**
+* To format dates and numbers:
+    ```
+    format_dict = {'Date': '{:%m/%d/%y}', 'Close': '${:.2f}'}
+    stocks.style.format(format_dict)
+    ```
+* To highlight min and max values:
+    ```
+    (stocks.style.highlight_min('Close', color='red')
+                 .highlight_max('Close', color='green'))
+    ```
+
+**82) Explore a new dataset without too much work**
+1. `conda install -c conda-forge pandas-profiling`
+2. `import pandas_profiling`
+3. `df.profile_report()`
+
+**83) Check to see if two Series contain the same elements**
+* Don't do this: `df.A == df.B`
+* Do either:
+    ```
+    df.A.equals(df.B)
+
+    # or
+
+    df.equals(df2)
+    ```
+* `equals()` properly handles NaNs, whereas `==` doesn't
+
+**84) To check if two Series are similar**
+* Use `pd.testing.assert_series_equal(df.A, df.B)`
+* Useful arguments:
+    - `check_names=False`
+    - `check_dtypes=False`
+    - `check_exact=False`
+
+**85) Change default of how many rows to display**
+* If DataFrame has more than 60 rows, only show 10 rows (saves your screen space)
+    `pd.ser_options('min_rows', 4)`
+    
