@@ -677,5 +677,134 @@
 
 **85) Change default of how many rows to display**
 * If DataFrame has more than 60 rows, only show 10 rows (saves your screen space)
-    `pd.ser_options('min_rows', 4)`
-    
+    `pd.set_options('min_rows', 4)`
+
+
+**86) Examine the 'head' of a wide DataFrame**
+1. Change the display options to show all columns:
+    `pd.set_options('display.max_columns', None)`
+2. Transpose the head (swaps rows and columns)
+    `df.head().T`
+
+**87) Plot a DataFrame**
+* It's as easy as `df.plot(kind='...')`
+* Plot options:
+    - line
+    - bar
+    - barh
+    - hist
+    - box
+    - kde
+    - area
+    - scatter
+    - hexbin
+    - pie
+
+**88) Create interactive plots**
+1. Either:
+    1. `pip install hvplot`
+    2. `conda install -c conda-forge hvplot`
+2. `pd.options.plotting.backend = 'hvplot'`
+3. `df.plot(...)`
+* Example:
+    ```
+    import pandas as pd
+    df = pd.read_csv('http://bit.ly/drinksbycountry')
+    pd.options.plotting.backend = 'hvplot'
+    df.plot(kind='scatter', x='spirit_servings', y='wine_servings', c='continent')
+    ```
+
+**89) Handle `SettingWithCopyWarning`**
+* Rewrite your assignment using `loc`:
+    ```
+    import pandas as pd
+    df = pd.DataFrame({'gender': ['Male', 'Female', 'Male', 'F', 'Female'})
+
+    # Wrong and will lead to SettingWithCopyWarning
+    df[df.gender == 'F'].gender = 'Female'
+
+    # Correct solution using `loc`
+    df.loc[df.gender == 'F'] = 'Female'
+    ```
+
+**90) Handle `SettingWithCopyWarning` when creating a new columns**
+* You are probably assigning to a DataFrame that was created from another DataFrame.
+* As a solution use `copy()` method when copying a DataFrame
+    ```
+    import pandas as pd
+    df = pd.DataFrame({'gender': ['Male', 'Female', 'Male', 'Female']})
+
+    # Wrong and will lead to SettingWithCopyWarning
+    males = df[df.gender == 'Male']
+    males['abbreviation'] = 'M'
+
+    # Correct use `copy()`
+    males = df[df.gender == 'Male'].copy()
+    males['abbreviation'] = 'M'
+    ```
+
+**91) Rearrange the columns in your DataFrame**
+1. Specify all column names in desired order
+    ```
+    cols = ['A', 'B', 'C', 'D']
+    df[cols]
+    ```
+2. Specify columns to move, followed by remaining columns
+    ```
+    cols_to_move = ['A', 'C']
+    cols = cols_to_move + [col for col in df.columns if col not in cols_to_move]
+    df[cols]
+    ```
+3. Specify column positions in desired order
+    ```
+    cols = df.columns[[0, 2, 3, 1]]
+    df[cols]
+    ```
+
+**92) Transform DataFrame from wide to long format**
+* Use `melt()`
+* Example:
+    `df.melt(id_vars='zip_code', var_name='location_type', value_name='distance')`
+
+**93) Access specific groups in groupby object**
+* If you've created a groupby object, you can access any of the groups (as a DataFrame) using the `get_group()` method.
+* Example:
+    ```
+    import pandas as pd
+    df = pd.read_csv('http://bit.ly.imdbratings')
+    gb = df.groupby('genre')
+    gb.get_group('Western')
+    ```
+
+**94) Reshape a Series with a MultiIndex to a DataFrame**
+* Use `unstack()`
+* Example:
+    ```
+    import pandas as pd
+    titanic = pd.read_csv('http://bit.ly/kaggletrain')
+    titanic.groupby(['Sex', 'Pclass']).Survived.mean().unstack()
+    ```
+
+**95) Change display options**
+* To change default options: `pd.set_option('display.max_rows', 80)`
+* To revert to default options: `pd.reset_option('display.max_rows')`
+* To view all options: `pd.describe_option()`
+* Most common options:
+    - `max_rows`
+    - `max_columns`
+    - `max_colwidth`
+    - `precision`
+    - `date_dayfirst`
+    - `date_yearfirst`
+
+**96) Show total memory usage of a DataFrame**
+* To show total memory usage of a DataFrame: `df.info(memory_usage='deep')`
+* To show memory used by each column: `df.memory_usage(deep=True)`
+* To reduce the memory usage of a column either drop unused columns or con vert object columns to `category` type
+
+**97) Find out what version of pandas you're using**
+* To find out what version of pandas you're using: `pd.__version__`
+* To determine the versions of its dependencies: `pd.show_versions()`
+
+**98) Access numpy without importing it**
+* You can use numpy without importing it via: `pd.np.random.rand(2, 3)`
