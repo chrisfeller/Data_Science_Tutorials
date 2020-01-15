@@ -27,6 +27,8 @@ Collection of notes from various data science tutorials and textbooks. Original 
 
 * [Udemy Machine Learning w/ Python and Keras](https://www.udemy.com/machine-learning-fun-and-easy-using-python-and-keras/)
 
+* [Udemy Apache Airflow](https://www.udemy.com/course/the-complete-hands-on-course-to-master-apache-airflow/)
+
 * [Machine Learning In Action](https://www.amazon.com/Machine-Learning-Action-Peter-Harrington/dp/1617290181)
 
 * [Hands-On Machine Learning with Scikit-Learn and TensorFlow](https://www.amazon.com/Hands-Machine-Learning-Scikit-Learn-TensorFlow/dp/1491962291)
