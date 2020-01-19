@@ -5,7 +5,7 @@
 ---
 #### Introduction
 **Course Link**
-* Main course homepage: https://www.udemy.com/course/the-complete-hands-on-course-to-master-apache-airflow/
+* Main course [homepage](https://www.udemy.com/course/the-complete-hands-on-course-to-master-apache-airflow/)
 
 **Environment**
 1. Start VirtualBox LeanAirflow environment
@@ -582,3 +582,99 @@
 * There is no point to use `depends_on_past=True` on downstream tasks from the BranchPythonOperator as skipped status will invariably lead to block tasks that depend on their past successes.
 
 #### Creating Airflow Plugins with Elasticsearch and PostgreSQL
+**Plugins**
+* A plugin is a simple way to add functionalities to Apache Airflow without altering its functionalities
+* It is built on top of Apache Airflow and not directly merged to the code in order to avoid possible bugs and dependency errors during updates.
+* It also can be used as an easy way to write, share, and activate new sets of features.
+* Different organizations have different stacks and different needs, creating plugins can be a way for companies to customize their Airflow installation in order to reflect their ecosystem.
+
+**How Apache Airflow Deals with Plugins**
+* Airflow offers a generic toolbox for working with plugins. It has a simple plugin manager built-in that can integrate external features to its core by simply dropping files in the `$AIRFLOW_HOME/plugins` folder.
+* The python modules in the plugin folder get imported, and hooks, operators, sensors, macros, executors and web views get integrated to Airflow's main collections and become available for use as any Airflow's component.
+
+**Extendable Components**
+* Operators: They describe a single task in a workflow.
+    - Derived from BaseOperator
+* Sensors: They are a particular subtype of Operators used to wait for an event to happen.
+    - Derived from BaseSensorOperator
+* Hooks: They are used as interfaces between Apache Airflow and external systems.
+    - Derived from BaseHook
+* Executors: They are used to actually execute the tasks.
+    - Derived from BaseExecutor
+* Admin Views: Represent base administrative view from Flask-Admin allowing you to create web interfaces.
+    - Derived from flask_admin.BaseView
+* Blueprints: Represent a way to organize flask applications into smaller re-usable applications. A blueprint defines a collection of views, static assets and templates.
+    - Derived from flask.Blueprint
+* Menu Link: Allows you to add custom links to the navigation menu in Apache Airflow.
+    - Derived from flask_admin.base.MenuLink
+
+**How to Create a Plugin**
+* To create a plugin you must derive the `airflow.plugins_manager.AirflowPlugin` class and reference the objects you want to plug into Airflow.
+* Basically you would have a python file (we will use `__init__.py`) in which a subclass of AirflowPlugin is defined with a name attribute (this name will be used to import your plugin: `from.airflow.operators.{name}`) and different custom objects (hooks, operators, sensors, ...) representing your plugin.
+
+**Important Notes**
+* There is one more component that you need to extend which is the Macros. The macros are a way to pass dynamic information into task instances at runtime. They are tightly coupled with Jinja Template, a python templating language.
+* When you create a plugin, be sure to understand exactly what you are doing. Some components required to implement specific functions:
+    - An Operator plugin must have an `execute` method
+    - A Sensor plugin must have a `poke` method returning a boolean value.
+* When you wan to create a new page to Airflow UI, you will need to use an AdminView and Blueprint together.
+
+**Quiz**
+1. Where do you need to put your plugins in order to be used by Apache Airflow?
+    A: In `$AIRFLOW_HOME/plugins` folder
+2. Can you create your own executor?
+    A: Yes
+3. What do I need in order to create a View into the Airflow UI?
+    A: An Admin View, a Blueprint, and a Template
+4. In order to create a plugin, what class should my class needs to inherit from?
+    A: AirflowPlugin
+5. What are Macros?
+    A: The macros are a way to pass dynamic information into task instances at runtime.
+
+#### Using Apache Airflow with Docker
+**Docker**
+* Docker is a containerization platform that packages your application and all its dependencies together in the form of a docker containing to ensure that your application works seamlessly in any environment.
+* In other words, you can think of Docker as being a way to run your application anywhere, whatever the environment and the operating system your application is running on. Your application will always produce the same result.
+
+**Docker Container**
+* A Docker Containing is an instance of a Docker image
+* A Docker Image is a single file with a Dockerfile, which includes all of the dependencies and code your application needs to run.
+* A Docker Containing is a program (instance of a docker image) with its own isolated set of hardware resources. It has its own space of networking, memory, and hard drive space.
+* The difference between a containing and a VM is that a VM has an entire operating system running in it whereas a container shares the operating system where it is running on. A Docker container is way more lighter than a VM and allows to quickly start and stop resources as we need. For example, we could easily add airflow workers to scale out our Apache Airflow installation.
+
+**Docker File**
+* A Dockerfile is nothing more than a file containing the instructions for telling Docker how it should build your Docker image which contains everything our application needs to run.
+
+**The Ecosystem of Docker**
+* Docker Client: The primary way to interact with Docker. Each time you use the Docker Command Line Interface you refer to the Docker Client.
+* Docker Daemon: Is the Docker server listening for Docker API requests. It manages images, containers, volumes, and networks.
+* Docker Volume: Is a way to store the persistent data your applications create and use.
+* Docker Compose: The tool used to make it easier to run an application using multiple Docker containers. Docker Compose uses a `.yml` file that defines how Docker containers should behave in production.
+
+**Basic Docker Commands**
+* `docker info`: Gives information about your Docker installation (number of running, paused, stopped containers, number of images, etc.)
+* `docker run image`: Runs an instance of the `image` into a Docker container
+* `docker image ls`: Lists the images available on your machine.
+* `docker container ls --all`: Lists the containers running or not on your machine. If you only want to see your running containers, don't use the --all option.
+* `docker container stop contained-id`: Stops a running Docker container by specifying its container-id (you can find it by using the command `docker container ls`)
+* `docker build --tag=name-of-your-docker-image`: Builds a Docker image with the specific name passed into the --tag parameter
+* `docker exec -it container-name bash`: Allows you to interact with the container named `container-named` using a Bash shell.
+* `docker logs container-id`: Allows you to read the logs produced by your running container associated with the `container-id`
+* `docker-compose -f docker-compose.yml up -d`: Runs multiple Docker containers as defined in the docker-compose.yml file
+
+**Docker Compose**
+* Docker Compose is used to define and run multi-container Docker applications. By using a Compose file (with the .yml extension) you can configure as many containers as you want and specify how they should be built and connected as well as where the data should be stored.
+* Then with a single command, you can build, run and configure all of the containers.
+* We will use docker-compose to run Airflow along with its web server, scheduler and one or multiple workers.
+
+**Quiz**
+1. What is docker-compose?
+    A: Docker-compose is a tool for defining and running multi-container Docker applications by using a yml file defining services to launch.
+2. How can you make a SQLite database to be shared by two Docker containers?
+    A: You have to create a common volume for both containers where the meta database will be shared.
+3. How can you modify the dags_folder configuration value using an environmental variable?
+    A: By setting the environment variable `AIRFLOW_COR_DAGS_FOLDER="your/path/dags"`
+4. What is the purpose of --network option in docker compose when we add a new container to an existing multi-containers application?
+    A: The --network option allows the new container to be connected with an existing network
+5. Which command allow you to see the logs of your Docker container?
+    A: docker logs container_id
