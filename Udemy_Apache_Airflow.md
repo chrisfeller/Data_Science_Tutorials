@@ -472,3 +472,113 @@
 * This configuration is greatly recommended in production because it scales very well and allows you to achieve better performances.
 
 #### Implementing Advanced Concepts in Airflow
+**How to Create a SubDAGs**
+* In order to create a subDAG you have to use a factory function that returns a DAG Object (the subDAG in our case) and the SubDagOperator to attach the subDAG to the main DAG.
+* The factory function returns an instantiated DAG with the associated tasks. This function should be in a different file from where your main DAG is defined.
+
+**Important Notes**
+* The main DAG manages all the subDAGs as normal tasks. They are going to follow the same dependencies you had before. Nothing changes basically.
+* Airflow UI only shows the main DAG. In order to see your subDAGs you will have to clock on the related main DAG and then 'zoom in' into the subDAGs from the 'Graph View'
+* SubDags must be scheduled the same as their parent DAG.
+
+**Interacting with External Sources Using Hooks**
+* A Hook is simply an interface (a set of functions) to interact with external systems such as HIVE, PostgreSQL, Spark, SFTP, and so on. Apache Airflow provides you many different hooks in order to make your life easier.
+* For instance, PostgreOperator uses PostgresHook to interact with your PostgreSQL database and execute your request. It handles the connection and allows you to execute SQL like if you were logged into your PostgreSQL command interface.
+
+**Important Notes**
+* The parameters 'schema' corresponds to the database name you want to connect to in PostgreSQL.
+* `postgres_conn_id='postgre_sql'` Here `postgre_sql` is a connection created from the Airflow UI into the Connection view
+* There are many official hooks such as PrestoHook, SqliteHook, SlackHook and so on that you can use.
+* You can find also many very interesting unofficial hooks created by the community such as SparkSubmitHook (to kick off a spark submit job), FtpHook, JenkisHook, and so on.
+
+**XCOMs**
+* Apache Airflow introduced XCOMs to share key-value information between tasks.
+* XCOM stands for 'cross-communication' and allows multiple tasks to exchange messages (data) between them.
+* XCOMs are principally defined by a key, value and a timestamp.
+* They are stored into the Airflow's metadatabase with an associated `execution_date`, `task_id` and `dag_id`.
+* XCOMs (data) can be 'pushed' (sent) or 'pulled' (received).
+* When we push a message from a task using `xcom_push()` this message because available to other tasks.
+    - If a task returns a value (either from its Operator's `execute()` method, or from a PythonOperator's `python_callable()` function), a XCOM containing that value is automatically pushed.
+* When we pull a message from a task using `xcom_pull()`, the task gets the message based on parameters such as `key`, `task_ids` (the 's' is not a mistyping) and `dag_id`.
+    - By default, `xcom_pull()` for the keys that are automatically given to XCOMs when they are pushed by being returned from execute functions (as opposed to XCOMs that are pushed manually).
+
+**Important Notes**
+* XCOMs can be used to share any object that can be serialized (pickled) but be careful about the size of this object. Airflow is not a data streaming solution!
+* Some operators such as BashOperator or SimpleHttpOperator have a parameter called `xcom_push=False` by default. If you set `xcom_push=True` the last output will be pushed to an XCOM for the BashOperator or if you use Simple HttpOperator, the response of the HTT request will also be pushed to an XCOM.
+* Be careful, `execution_date` does not have the same meaning in the context of a DagRun and an XCOM. `execution_date` in XCOM is used to hide a XCOM until this date. For example, if we have two XCOMs with the same key value, dag id, and task id, the XCOM having the most recent `execution_date` will be pulled out by default. IF you didn't set an `execution_date`, this date will be equal to the `execution_date` of the DagRun.
+
+**Branching**
+* Branching is the mechanism allowing your DAG to choose between different paths according to the result of a specific task.
+* To do this use the BranchPythonOperator
+* The BranchPythonOperator is like the PythonOperator except that it expects a `python_callable` function that returns a `task_id`. In other words, the function passed to the parameter `python_callable` must return the `task_id` corresponding to the task which will be executed next.
+* All other paths are skipped and only the path leading to the task with the corresponding `task_id` will be followed.
+* The `task_id` returned by the Python function has to be referencing a task directly downstream from the BranchPythonOperator task.
+
+**Depends_on_pas and Branching**
+* You can use the property `depends_on_past` at the task level. It means this task will run only if the same task instance succeed in the previous DagRun. If there is no previous DagRun, the task will be triggered. Now you know that, there is no point to use `depends_on_past=True` on downstream tasks from the BranchPythonOperator, as skipped status will invariably lead to block tasks that depend on their past successes.
+
+**SLA**
+* A Service Level Agreement (SLA) is a contract between a service provider and the end user that defines the level of service expected from the service provider.
+* SLAs do not define how the service itself is provided or delivered but rather define what the end user will receive. The level of service definitions should be specific and measurable.
+* In Apache Airflow, Service Level Agreements are defined as the time by which a task or DAG should have succeeded.
+
+**Adding SLA to a Task**
+* SLAs are set at a task level (Operator) as a timedelta. For example, if we want to add an SLA to a task using the BashOperator we will do the following:
+    `BashOperator(task_id='t1', sla=timedelta(seconds=5), bash_command="echo 'test'")`
+* In this example, we are basically saying that the task t1 should not exceed 5 seconds to succeed. If it does, a SLA is recorded in the database and an email is automatically sent to the given email address of the DAG.
+
+**Adding SLA Callback to the DAG**
+* When you instantiate a DAG, there is one parameter that you can use to call a function when an SLA is missed:
+    `sla_miss_callback=func(dag, t1, bt1, slas, btis)`
+* This parameter expects a function with the following arguments:
+    - `dag`: the dag object where the missed SLA(s) happened
+    - `task_list`: the task list having missed their SLA with their associated execution_time
+    - `blocking_task_list`: the task list being blocked by the tasks having missed their SLA with their associated execution_time
+    - `slas`: same as the task_list but in a lost of object (not in string format)
+    - `blocking_tis`: same as the blocking_task_list but in a lost object (not in string format)
+
+**Important Notes**
+* A SLA is relative to the execution_date of the task not the start time. You can only be alerted if the task runs 'more than 30 minutes FROM the execution_date'. You won't receive an alert if the task runs 'more than 30 minutes.'
+* You may think of using the execution_timeout parameter to express 'more than 30 minutes' but it doesn't serve the same purpose as a SLA. The execution_timeout parameter sets the maximum allowed time before a task is stopped and marked as being failed. With a SLA, your task will still run and you will be alerted that tis processing time is longer than expected.
+* Using SLAs with a DAG having a schedule_interval sets to None or `@once` has no effect. Because to check if a missed SLA must be triggered or not, Airflow looks at the next schedule_interval which in this case, does not exist.
+* If one or multiple tasks haven't succeeded in time, an email alert is sent with the list of tasks that missed their SLA. This email alert is not sent from the callback and can't be turned off. The only way to avoid receiving email alerts is by setting the email parameter of your task to None.
+* Be very careful when you use backfilling (process of replaying your DAG from the past) with tasks having a SLA. Indeed, you may end up with thousands of missed SLA in a very short period of time as it means the Apache Airflow that the tasks from the past didn't succeed in time.
+* All tasks sharing the same missed SLA time are going to be merged together in order to be sent by email. Also, each SLA is saved into the database.
+* SLAs are not well documented in Apache Airflow documentation
+
+**Quiz**
+1. What is the name of the special operator in order to use SubDAGs?
+    A: SubDagOperator
+2. What is a Hook?
+    A: A Hook is used as an interface to interact with external systems
+3. What happens when you return a value from a python_callable function?
+    A: The value will be automatically pushed into a XCOM
+4. How can I know which XCOM will be pulled out in first if they both have the same key?
+    A: The XCOM having the most recent execution_date will be pulled out in first by default.
+5. What is going to happen if we set depends_on_past=True when we use Branching?
+    A: This completely lock your DAG.
+
+**Summary**
+* SubDAGs allow you to make your DAG clearer by encapsulating different logic group of tasks together. A SubDAG is created by sing a factory method that returns a DAG Object (subDAG) and the SubDagOperator to attach the subDAG to the main DAG.
+* SubDags must be scheduled the same as their parent DAGs.
+* SubDagOperator uses its own executor which by default is the Sequential Executor. You should stick to it in order to avoid possible bugs and performance degradations.
+* SubDags must share the same start_date and schedule_interval as their parent.
+* A Hook is simply an interface to interact with external systems such as HIVE, PostgreSQL, Spark, SFTP and so on.
+* By using a Hook you can act like you are logged into your external system.
+* Some operators actually use Hooks internally such as PostgreOperator or MySqlOperator.
+* Hooks use connections stored into the metadatabase created from the Connection View.
+* XCOM stands for 'cross-communication' and allows messages stored in the database to share data between multiple tasks.
+* Those messages are defined by a key, a value, a timestamp, an execution date, a task id and a dag id.
+* Data are pushed by `xcom_push()` and pulled by `xcom_pull()`
+* If a task returns a value (either from its Operator's execute() method or from a PythonOperator's python_callable function), a XCOM containing that value is automatically pushed.
+* Be default, `xcom_pull()` for the keys that are automatically given to XCOMs when they are pushed by being returned from execute functions (as opposed to XCOMs that are pushed manually).
+* XCOMs are suitable from small values to share not for large sets of data.
+* If we have two XCOMs with the same key value, dag id, and task id, the XCOM having the most recent `execution_date` will be pulled out by default. IF you didn't set an `execution_date`, this date will be equal to the `execution_date` of the DagRun.
+* In both operators in which we use the functions xcom_push() and xcom_pull(), the parameter `provide_context` has been set to True. When `provide_context` is set to True, Airflow will pass a set of keyword arguments that can be used in your function. Those keyword arguments are passed through `**kwargs` variable. By using the 'ti' key from `**kwargs`, we get the TaskInstance object representing the task running the python_callable function, needed to pull or push a XCOM.
+* Branching is the mechanism allowing your DAG to choose between different paths according to the result of a specific task.
+    - To do this we use the BranchPythonOperator
+* The BranchPythonOperator is like the PythonOperator except that it expects a python_callable that returns a task_id. In other words, the function passed to the parameter python_callable must return the task_id corresponding to the task which will be executed next.
+* The task_id returned by the Python function has to be referencing a task directly downstream from the BranchPythonOperator
+* There is no point to use `depends_on_past=True` on downstream tasks from the BranchPythonOperator as skipped status will invariably lead to block tasks that depend on their past successes.
+
+#### Creating Airflow Plugins with Elasticsearch and PostgreSQL
