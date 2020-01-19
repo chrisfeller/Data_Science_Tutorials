@@ -343,4 +343,132 @@
 * Apache Airflow will run past DAGs for any interval that has not been run. This concept is called Catchup / Backfill.
 * This feature allows you to backfill your DB with data produced from your ETL as if it were run from the past.
 * IF you want to avoid this behavior, you can set the parameter `catchup=False` into the DAG arguments.
-* Workflows are basically the combination of DAGs, Operators, Tasks, and TaskInstances. 
+* Workflows are basically the combination of DAGs, Operators, Tasks, and TaskInstances.
+
+#### Databases and Executors
+**Sequential Executor with SQLite**
+* Apache Airflow can work in a distributed environment. Tasks are scheduled according to their dependencies defined into a DAG and the Workers pick up and run jobs with their load balanced for performance optimization. All task information is stored into the Metadatabase which is regularly updated.
+
+**SQLite**
+* SQLite is the default database used by airflow
+* SQLite is a relational database
+* SQLite is ACID-compliant (Atomicity, Consistency, Isolation, Durability)
+* It implements most of the SQL standard.
+* It requires almost no configuration to run.
+* It supports an unlimited number of simultaneous readers, but only one writer at an instant in time.
+* Limited in size up to 140 TB and the entire database is stored into a single disk file.
+
+**Executors**
+* An Executor is fundamentally a message queue process which determines the Worker processes that execute each scheduled task.
+* A Worker is a process where the task is executed.
+
+**What is a Sequential Executor**
+* It is the most basic executor to use.
+* This executor only runs one task at a time (Sequential), useful for debugging.
+* It is the only executor hat can be used with SQLite since SQLite doesn't support multiple writers.
+* It is the default executor you get when you run Apache Airflow for the first time.
+
+**The Configuration File**
+* The configuration file is where you would update the type of executor you would like to use in airflow.
+* `executor=SequentialExecutor`
+    - The executor class that Airflow should use
+    - Options: SequentialExecutor, LocalExecutor, CeleryExecutor, DaskExecutor
+* `sql_alchemy_conn=sqlite:////home/airflow/airflow/airflow.db`
+    - The SqlAlchemy connection string used to connect airflow to the metadatabase. SqlAlchemy supports many different database engines.
+* `sql_alchemy_pool_enabled=True`
+    - If SqlAlchemy should pool database connections. A connection pool is a standard technique used to maintain long running connections in memory for efficient re-use as well as to provide management for the total number of connections an application might use simultaneously.
+
+**Concurrency vs. Parallelism**
+* A very important concept to understand before going forward is the difference between concurrency and parallelism in programming:
+    - A system is said to be concurrent if it can support two or more actions in progress at the same time. A system is said to be parallel if it can support two or more actions executing simultaneously. The key concept and difference between these definitions is the phrase 'in progress.'
+    - In concurrent systems, multiple actions can be in progress (may not be executed) at the same time, meanwhile, multiple actions are simultaneously executed in parallel systems.
+
+**The Configuration File**
+* There are three parameters in the configuration file that allow you to tune whether your DAGs are run in concurrency or parallelism.
+* `parallelism=32`
+    - The number of physical python processes (worker) the scheduler can run.
+* `max_active_runs_per_dag=16`
+    - The number of DAGRuns (per-DAG) to allow running at once.
+* `dag_concurrency=16`
+    - The number of task instances allowed to run per DAGRun at once.
+
+**SQLite and Sequential Executor**
+* It's basically the default configuration you get when you install Apache Airflow.
+* Really suitable for debugging and testing.
+* Do not use this configuration in Production since it doesn't scale.
+* There is no parallelism and/or concurrency.
+
+**PostgreSQL**
+* PostgreSQL is an object-relational database and ACID compliant.
+* PostgreSQL is a client-server database, so there is a server process (managing database files and connections, performing actions, etc.) and a client which is used to perform database operations.
+* PostgreSQL can handle multiple concurrent connections form client in writing as well as in reading mode.
+* It implements SQL standard as well as advanced SQL stuff like Window functions.
+* Scalable.
+
+**What is a Local Executor**
+* Local Executor executes tasks locally in parallel. It uses the multiprocessing Python library and queues to parallelize the execution of tasks.
+* It can run multiple tasks at a time.
+* It run tasks by spawning processes in a controlled fashion in different modes on the same machine.
+* You can tune the number of processes to spawn by using the parallelism parameter.
+
+**Local Executor Strategies**
+* There are two strategies depending on the parallelism value:
+    1.  `parallelism == 0` which means unlimited parallelism. Every task submitted to the Local Executor will be executed in its own process. Once the task is executed and the result stored in the `result_queue`, the process terminates.
+    2. `parallelism > 0` which means the Local Executor spawn the number of processes equal to the value of `parallelism` at start time using `task_queue` to coordinate the ingestion of tasks and the work distribution among the workers. During the lifecycle of the Local Executor in this mode, the worker processes are running waiting for tasks, once the Local Executor receives the call to shutdown the executor, a poison token is sent to the workers to terminate them.
+* It is advised you set `parallelism` greater than zero.
+
+**Local Executor with PostgreSQL**
+* SQLite does not accept more than once writer which makes multiple tasks to run in parallel impossible.
+* PostgreSQL is a perfect fit for Local Executor since it does accept multiple connections in both ways, writing and reading allowing for task parallelism.
+* Technically a Sequential Executor could be thought of as a Local Executor with limited parallelism sets to 1.
+
+**RabbitMQ**
+* RabbitMQ is an open source message queuing software.
+* Allows for the creation of queues where applications can be connected to in order to consume messages from these queues.
+* Messages (data) placed onto the queue are stored until the consumer (a tierce application) retrieves them.
+* A basic architecture of a message would be:
+    - Client applications called producers, create messages and deliver them to the message queue (broker)
+    - Other applications called consumers, connect to the queue and subscribe to the messages to process them.
+
+**Celery Executor**
+* Celery Executor is recommended for production use of Airflow.
+* It allows distributing the execution of task instances to multiple worker nodes.
+* Celery is a Python Task-Queue system that handle distribution of tasks on workers across threads or network nodes.
+* The tasks need to be pushed into a broker like RabbitMQ, and Celery workers will pop them and schedule task executions.
+
+**Celery Executor + RabbitMQ + PostreSQL**
+* PostgreSQL is a database allowing multiple concurrent clients to connect in both read and write modes.
+* Celery Executors allow to interact with Celery backend in order to distribute and execute task and instances on multiple worker nodes giving a way to high availability and horizontal scaling.
+* Celery needs to use a broker in order to pull out from the worker nodes that task instances to execute and that's why we need to use RabbitMQ.
+
+**Quiz**
+1. What is a sequential executor?
+    A: The executor is used to run one task at a time.
+2. What is a local executor?
+    A: A local executor can run multiple tasks in parallel
+3. What is the main limitation of SQLite?
+    A: It can accept only one writer at a time.
+4. What does the parameter 'parallelism' do in the configuration file `Airflow.cfg`?
+    A: It gives the number of allowed processes the executors can run to execute the tasks in parallel.
+5. What is a Celery Executor?
+    A: It allows distributing the execution of task instances to multiple worker nodes.
+
+**Summary**
+* The most basic configuration which is by default is the Sequential Executor with SQLite. This configuration is perfect for debugging but it does not allow you to run multiple concurrent tasks limiting Apache Airflow's performance. SQLite supports an unlimited number of readers but only one writer at a time.
+* Only Sequential Executors can be used with SQLite.
+* The difference between concurrency and parallelism is that a concurrent system can support two or more actions in progress at the same time whereas a parallel system supports two or more actions running simultaneously at the same time (they are at the same instruction to execute).
+* Do not use Sequential Executors with SQLite in production since this configuration doesn't scale.
+* The second configuration is Local Executor with PostgreSQL (or MySQL). PostgreSQL is a scalable client-server database allowing concurrent connections in reading and writing.
+* Local Executors execute tasks locally in parallel by using the multiprocessing Python library and queues to parallelize the execution of tasks.
+* They run tasks by spawning processes in a controlled fashion in different modes on the same machine.
+* In the Airflow configuration file you can change `parallelism` with:
+    - `0`: Unlimited parallelism, every task submitted to the Local Executor will be executed in its own process as they arrive.
+    - `> 0`: Limited parallelism, spawn the number of processes equal to the value of `parallelism` at start time using a `task_queue` to coordinate the ingestion of tasks.
+* The last configuration is Celery Executor with PostgreSQL (or MySQL) and Rabbit MQ.
+* RabbitMQ is an open source message queuing software where multiple producers send messages to a queue where those messages are pulled out by the consumers.
+* Celery is a Python Task-Queue system that handles distribution of tasks on workers across threads or network nodes.
+* Celery Executors allow you to interact with Celery backend in order to distribute and execute task instances on multiple worker nodes giving a way to high availability and horizontal scaling.
+* Celery needs to use a broker in order to pull out from the worker nodes and task instances to execute justifying the need of Rabbit MQ.
+* This configuration is greatly recommended in production because it scales very well and allows you to achieve better performances.
+
+#### Implementing Advanced Concepts in Airflow
