@@ -9,6 +9,8 @@ Collection of notes from various data science tutorials and textbooks. Original 
 
 * [Data School Pandas Tricks](https://www.youtube.com/watch?v=RlIiVeig3hc)
 
+* [Pandas Best Practices (PyCon)](https://www.youtube.com/watch?v=dPwLlJkSHLo)
+
 * [Pandas Cookbook](https://github.com/jvns/pandas-cookbook)
 
 * [Pandas Profiling Tutorial](https://github.com/pandas-profiling/pandas-profiling)
