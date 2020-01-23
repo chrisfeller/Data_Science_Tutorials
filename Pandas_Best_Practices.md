@@ -57,3 +57,71 @@ plt.title('Distribution of Comments')
 plt.tight_layout()
 plt.show()
 ```
+
+**4. Plot the number of talks that took place each year**
+```
+import seaborn as sns
+plt.style.use('fivethirtyeight')
+
+ted_agg = ted.assign(year=
+                    pd.to_datetime(ted['film_date'], unit='s').dt.year)\
+             .groupby('year')\
+             .count()\
+             .reset_index()
+fig, ax = plt.subplots(figsize=(12, 5))
+sns.lineplot(x='year', y='comments', data=ted_agg, color='royalblue')
+ax.set(xlabel='Year', ylabel='Event Count')
+ax.set_xticklabels(ax.get_xticklabels(),rotation=30)
+plt.title('Number of Ted Talks Per Year')
+plt.tight_layout()
+plt.show()
+```
+
+**5. What were the 'best' events in TED history to attend?**
+```
+ted_agg = ted.groupby('event')\
+             .views\
+             .agg(['count', 'sum'])\
+             .sort_values(by='sum', ascending=False)
+```
+
+**6. Unpack the ratings data**
+```
+import ast
+
+ted['ratings_list'] = ted.ratings.apply(lambda x: ast.literal_eval(x))
+```
+
+**7. Count the total number of ratings received by each talk**
+```
+def get_num_ratings(list_of_dicts):
+    num = 0
+    for d in list_of_dicts:
+        num = num + d['count']
+    return num
+
+ted['num_ratings'] = ted.ratings_list.apply(lambda x: get_num_ratings(x))
+```
+
+**8. Which occupations deliver the funniest TED talks on average?**
+```
+# 1. Get count of funny ratings
+def get_funny_ratings(list_of_dicts):
+    for d in list_of_dicts:
+        if d['name']=='Funny':
+            return d['count']
+
+ted['funny_rating'] = ted['ratings_list'].apply(lambda x: get_funny_ratings(x))
+
+# 2. Create a rate of funny comments to total comments
+ted['funny_rate'] = ted['funny_rating'] / ted['num_ratings']
+
+# 3. Analyze the funny rate by occupation
+ted.groupby('speaker_occupation')['funny_rate'].mean()\
+            .sort_values(ascending=False)
+
+# 4. Focus on occupations that are well-represented in the data
+occupation_counts = ted['speaker_occupation'].value_counts()
+top_occupations = occupation_counts[occupation_counts >=5].index
+
+```
