@@ -124,4 +124,7 @@ ted.groupby('speaker_occupation')['funny_rate'].mean()\
 occupation_counts = ted['speaker_occupation'].value_counts()
 top_occupations = occupation_counts[occupation_counts >=5].index
 
+ted[ted['speaker_occupation'].isin(top_occupations)]\
+            .groupby('speaker_occupation')['funny_rate'].mean()\
+            .sort_values(ascending=False)
 ```
