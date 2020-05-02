@@ -1,6 +1,8 @@
 # Data Science Tutorials
 Collection of notes from various data science tutorials and textbooks. Original links included below.
 
+* [Galvanize Data Science Immersive](https://www.galvanize.com/data-science-bootcamp)
+
 * [10 Minutes To Pandas](https://pandas.pydata.org/pandas-docs/stable/10min.html)
 
 * [Data School Pandas Tutorial](https://www.youtube.com/watch?v=yzIMircGU5I&list=PL5-da3qGB5ICCsgW1MxlZ0Hq8LL5U3u9y&index=1)
