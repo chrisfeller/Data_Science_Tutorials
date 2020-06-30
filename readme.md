@@ -25,6 +25,8 @@ Collection of notes from various data science tutorials and textbooks. Original 
 
 * [Data School Scikit-learn Tutorial](https://www.youtube.com/watch?v=elojMnjn4kk&list=PL5-da3qGB5ICeMbQuqbbCOQWcS6OYBr5A&index=1)
 
+* [Data School Building an Effective Machine Learning Workflow with sklearn](https://gumroad.com/l/ML-course?variant=Live%20Course%20%2B%20Advanced%20Course%20%3D%20%24129)
+
 * [An Introduction to Statistical Learning](https://www.amazon.com/Introduction-Statistical-Learning-Applications-Statistics/dp/1461471370)
 
 * [Coursera Machine Learning](https://www.coursera.org/learn/machine-learning)
